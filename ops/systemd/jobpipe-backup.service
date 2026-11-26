@@ -1,0 +1,17 @@
+[Unit]
+Description=jobpipe: nightly SQLite backup (oneshot)
+
+[Service]
+Type=oneshot
+User=jobpipe
+Group=jobpipe
+Environment=JOBPIPE_HOME=/var/lib/jobpipe
+Environment=JOBPIPE_SECRETS=/etc/jobpipe/secrets.env
+WorkingDirectory=/opt/jobpipe
+ExecStart=/opt/jobpipe/.venv/bin/jobpipe backup
+TimeoutStartSec=900
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/jobpipe
+PrivateTmp=true

@@ -1,0 +1,61 @@
+# LLM router config (ADR 0004). Copied to $JOBPIPE_HOME/config/llm.yaml by `jobpipe init`.
+#
+# Limits are YOURS to fill from each provider's current free-tier page; the router never guesses.
+# The numbers below are deliberately conservative placeholders. Model ids change: check them in
+# the provider console before enabling.
+
+pii_redaction: required              # required | off  (ADR 0008)
+personal_on_training_providers: false
+breaker_threshold: 3                 # consecutive failures before a provider is switched off
+breaker_minutes: 15
+default_cooldown_s: 60               # after a 429 without retry-after
+retry_backoff_s: 2
+
+# Personal values replaced by {{LABEL}} before personal prompts leave the machine.
+# Keep real values only in your private copy of this file.
+pii_values: {}
+#  NAME: ["Full Name", "Name Surname"]
+#  EMAIL: ["me@example.com"]
+#  PHONE: ["+7 700 000 00 00"]
+
+providers:
+  gemini:
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai
+    model: gemini-flash-latest       # verify in Google AI Studio
+    key_env: GEMINI_API_KEY
+    rpm: 5
+    rpd: 100
+    tpm: 100000
+    day_reset_tz: America/Los_Angeles
+    trains_on_data: true             # free tier: assume prompts may be used for training
+  groq:
+    enabled: false
+    base_url: https://api.groq.com/openai/v1
+    model: llama-3.3-70b-versatile   # verify in the Groq console
+    key_env: GROQ_API_KEY
+    rpm: 10
+    rpd: 500
+    trains_on_data: false            # verify in Groq's terms
+  cerebras:
+    enabled: false
+    base_url: https://api.cerebras.ai/v1
+    model: llama-3.3-70b             # verify in the Cerebras console
+    key_env: CEREBRAS_API_KEY
+    rpm: 10
+    rpd: 500
+    trains_on_data: false            # verify in Cerebras' terms
+  openrouter:
+    enabled: false
+    base_url: https://openrouter.ai/api/v1
+    model: "meta-llama/llama-3.3-70b-instruct:free"   # verify on openrouter.ai
+    key_env: OPENROUTER_API_KEY
+    rpm: 10
+    rpd: 50
+    trains_on_data: true             # free endpoints may log prompts
+
+tasks:
+  ping:
+    chain: [gemini, groq, cerebras, openrouter]
+    prompt_version: v1
+    temperature: 0
+    max_tokens: 64

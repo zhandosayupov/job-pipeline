@@ -1,0 +1,35 @@
+# Copied to $JOBPIPE_HOME/config/settings.yaml by `jobpipe init`. Edit the copy, not this file.
+
+timezone: Asia/Almaty
+
+telegram:
+  # Your numeric Telegram user id. The bot ignores everyone else.
+  # Find it by messaging @userinfobot, or from the bot's log after you message it once.
+  owner_id: null
+  token_env: TELEGRAM_BOT_TOKEN   # name of the variable in secrets.env
+
+queue:
+  lease_seconds: 300
+  default:
+    max_attempts: 5
+    backoff_base_s: 30
+    backoff_cap_s: 3600
+  types:
+    selftest.fail:          # fast schedule so the S0 demo finishes in minutes
+      max_attempts: 4
+      backoff_base_s: 5
+      backoff_cap_s: 60
+
+runner:
+  max_seconds: 240          # a queue run stops taking tasks after this
+  kill_grace_s: 8           # /pause: SIGTERM, then SIGKILL after this many seconds
+
+backup:
+  keep: 7
+  # upload_cmd: ["/opt/jobpipe/ops/upload-backup.sh", "{path}"]
+
+http:
+  host: 127.0.0.1
+  port: 8080
+
+log_level: INFO
