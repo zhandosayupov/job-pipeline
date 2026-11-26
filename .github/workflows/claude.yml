@@ -1,0 +1,47 @@
+# @claude in issues and PRs. Based on anthropics/claude-code-action examples/claude.yml.
+# Comment/issue workflows run from the copy of this file on the default branch.
+name: Claude
+
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  pull_request_review:
+    types: [submitted]
+  issues:
+    types: [opened, assigned]
+
+jobs:
+  claude:
+    # Public repo: only the owner and collaborators can summon Claude (it spends the owner's quota
+    # and has write access to the repo).
+    if: |
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      ) && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'),
+                    github.event.comment.author_association || github.event.review.author_association || github.event.issue.author_association)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+      actions: read   # lets Claude read CI results on PRs
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          # Subscription token from `claude setup-token`. With an API key instead, use
+          # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Bash(uv sync*),Bash(uv run pytest*),Bash(uv run ruff*),Bash(uv run python tools/leak_guard.py*)"
