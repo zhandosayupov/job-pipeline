@@ -110,7 +110,7 @@ def _compact_table(conn: sqlite3.Connection, table: str, final_states: frozenset
     marks = ", ".join("?" for _ in final_states)
     rows = conn.execute(
         f"SELECT id, state, data_json FROM {table} WHERE state IN ({marks}) AND updated_at < ? "
-        "AND data_json NOT LIKE '%\"compacted\": true%'",
+        "AND json_extract(data_json, '$.compacted') IS NOT 1",
         (*sorted(final_states), before),
     ).fetchall()
     for r in rows:

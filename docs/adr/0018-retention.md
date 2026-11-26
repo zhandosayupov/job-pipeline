@@ -29,4 +29,8 @@ to count the funnel.
 
 ## Consequences
 Old job descriptions cannot be re-read; re-labelling a months-old job means fetching it again.
+Deleting done tasks also drops their idempotency keys, so the same internal task can be enqueued
+again after `tasks_done_days`; that is harmless because external actions are guarded by
+`side_effects` keys, which are kept forever. Compaction is detected with
+`json_extract(data_json, '$.compacted')`, so it does not depend on JSON formatting.
 The append-only rule for `events` now has one exception: retention is the only deleter.

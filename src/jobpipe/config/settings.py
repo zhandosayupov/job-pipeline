@@ -121,6 +121,9 @@ class PolicyCfg(_Model):
         "compensation", "start_date", "notice_period", "visa", "citizenship", "reason_for_leaving",
         "references", "interview_scheduling", "offer",
     ])
+    # Applications: a sensitive form question may be auto-answered only with a verbatim answer the
+    # owner approved in kb/answers.yaml. false = any sensitive question turns the application into a card.
+    auto_apply_preapproved_sensitive: bool = True
     # Messages (not applications) may be raised to L2 only after this many clean approvals.
     l2_min_clean_approvals: int = 20
 

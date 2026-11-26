@@ -10,6 +10,8 @@ APP_DIR=/opt/jobpipe
 HOME_DIR=/var/lib/jobpipe
 ETC_DIR=/etc/jobpipe
 SVC_USER=jobpipe
+PY_DIR=/opt/jobpipe-python            # uv-managed CPython, root-owned
+UV_CACHE_DIR=/var/cache/jobpipe-uv    # root-owned
 UV_VERSION=0.13.8         # pinned; bump deliberately (keep in step with .github/workflows/ci.yml)
 PYTHON_VERSION=3.12
 SWAP_SIZE=2G
@@ -50,19 +52,32 @@ if ! [[ -x $UV ]] || ! "$UV" --version | grep -q "$UV_VERSION"; then
   curl -LsSf "https://astral.sh/uv/$UV_VERSION/install.sh" | env UV_INSTALL_DIR=/usr/local/bin UV_NO_MODIFY_PATH=1 sh
 fi
 
-log "code in $APP_DIR ($BRANCH)"
-if [[ -d $APP_DIR/.git ]]; then
-  sudo -u "$SVC_USER" git -C "$APP_DIR" fetch --quiet origin "$BRANCH"
-  sudo -u "$SVC_USER" git -C "$APP_DIR" checkout --quiet "$BRANCH"
-  sudo -u "$SVC_USER" git -C "$APP_DIR" reset --quiet --hard "origin/$BRANCH"
-else
-  install -d -o "$SVC_USER" -g "$SVC_USER" "$APP_DIR"
-  sudo -u "$SVC_USER" git clone --quiet --branch "$BRANCH" "$REPO_URL" "$APP_DIR"
+# Code, virtualenv and Python runtime are owned by root and read-only to the service user, so a
+# compromised service cannot change what root later runs or installs (unit files included).
+log "code in $APP_DIR ($BRANCH): fresh root-owned clone"
+# Never run git as root inside the old checkout: its .git could have been tampered with.
+NEW_DIR=$(mktemp -d /opt/jobpipe.new.XXXXXX)
+git clone --quiet --depth 1 --branch "$BRANCH" "$REPO_URL" "$NEW_DIR"
+chown -R root:root "$NEW_DIR"
+chmod -R u+rwX,go+rX,go-w "$NEW_DIR"     # mktemp makes 0700: open read access, no write for others
+if [[ -e $APP_DIR ]]; then
+  rm -rf -- "$APP_DIR.old"
+  mv -- "$APP_DIR" "$APP_DIR.old"
 fi
+mv -- "$NEW_DIR" "$APP_DIR"
+rm -rf -- "$APP_DIR.old"
 
-log "python env"
-sudo -u "$SVC_USER" env UV_PYTHON_INSTALL_DIR="$HOME_DIR/.uv-python" UV_CACHE_DIR="$HOME_DIR/.uv-cache" \
+log "python runtime and env (root-owned)"
+install -d -m 755 -o root -g root "$PY_DIR" "$UV_CACHE_DIR"
+rm -rf -- "$HOME_DIR/.uv-python" "$HOME_DIR/.uv-cache"   # left by older versions of this script
+env UV_PYTHON_INSTALL_DIR="$PY_DIR" UV_CACHE_DIR="$UV_CACHE_DIR" \
   "$UV" sync --project "$APP_DIR" --locked --no-dev --python "$PYTHON_VERSION" --quiet
+chmod -R go-w "$APP_DIR/.venv" "$PY_DIR"
+if sudo -u "$SVC_USER" test -w "$APP_DIR" || sudo -u "$SVC_USER" test -w "$APP_DIR/.venv/bin" \
+   || sudo -u "$SVC_USER" test -w "$PY_DIR"; then
+  echo "refusing to continue: $SVC_USER can write to the code or the Python runtime" >&2
+  exit 1
+fi
 
 log "secrets file"
 install -d -m 750 -o root -g "$SVC_USER" "$ETC_DIR"

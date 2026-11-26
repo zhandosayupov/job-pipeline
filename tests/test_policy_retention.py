@@ -44,6 +44,16 @@ def test_block_beats_everything_and_ask_collects_all_reasons():
     assert d.route is Route.ASK and len(d.reasons) == 2
 
 
+def test_sensitive_questions_need_a_preapproved_answer():
+    asked = frozenset({"compensation", "visa", "github_url"})
+    d = decide_apply(PolicyCfg(), replace(CLEAN, topics_asked=asked, topics_preapproved=frozenset({"compensation"})))
+    assert d.route is Route.ASK and "visa" in d.reasons[0] and "compensation" not in d.reasons[0]
+    ok = replace(CLEAN, topics_asked=asked, topics_preapproved=frozenset({"compensation", "visa"}))
+    assert decide_apply(PolicyCfg(), ok).route is Route.SUBMIT
+    strict = PolicyCfg(auto_apply_preapproved_sensitive=False)
+    assert decide_apply(strict, ok).route is Route.ASK
+
+
 def test_apply_level_l1_asks():
     policy = PolicyCfg(autonomy={"apply": "L1"})
     assert decide_apply(policy, CLEAN).route is Route.ASK
@@ -153,3 +163,10 @@ def test_retention_deletes_and_compacts(conn, clock, queue_cfg):
     assert job_events == 0
 
     assert run_retention(conn, clock, cfg)["jobs_compacted"] == 0  # idempotent
+
+
+def test_compaction_marker_does_not_depend_on_json_formatting(conn, clock):
+    _job(conn, clock, "j", ["dropped"], {})
+    conn.execute("""UPDATE jobs SET data_json = '{"compacted":true,"resolution":"dropped"}' WHERE id = 'j'""")
+    clock.advance(100 * 86400)
+    assert run_retention(conn, clock, RetentionCfg())["jobs_compacted"] == 0

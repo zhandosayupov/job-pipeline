@@ -13,7 +13,10 @@ Date: 2026-11-26 · Status: accepted
 * Backoff: equal jitter, `d = min(cap, base * 2^(attempt-1))`, delay = `d/2 + rand(0, d/2)`.
   Base, cap and max attempts are configurable per task type.
 * Dead-letter: after `max_attempts` the task is `dead` and the owner gets a Telegram alert.
-* Enqueue with an existing idempotency key returns the existing task.
+* Enqueue with an existing idempotency key returns the existing task. Task keys deduplicate
+  internal work only while the task row exists (done tasks are deleted after
+  `retention.tasks_done_days`, ADR 0018). Anything visible outside the system is protected by
+  `side_effects` keys, which are never deleted.
 * A handler may raise `Permanent` to dead-letter at once (a validation error that retrying will not fix).
 
 ## Consequences

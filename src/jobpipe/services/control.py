@@ -181,7 +181,7 @@ def stop_running(
     t0 = time.monotonic()
     exclude_pid = exclude_pid or os.getpid()
     terminated, gone = [], []
-    targets: list[tuple[int, int]] = []
+    targets: list[tuple[int, int, sqlite3.Row]] = []
     for row in running_runs(conn):
         pid = row["pid"]
         if pid == exclude_pid:
@@ -193,18 +193,18 @@ def stop_running(
         try:
             os.kill(pid, signal.SIGTERM)
             terminated.append(pid)
-            targets.append((row["id"], pid))
+            targets.append((row["id"], pid, row))
         except ProcessLookupError:
             gone.append(pid)
             finish_run(conn, clock, row["id"], "failed", {"reason": "process vanished"})
     deadline = time.monotonic() + grace_s
     while targets and time.monotonic() < deadline:
-        if all(not pid_alive(pid) for _, pid in targets):
+        if all(not is_same_process(row) for _, _, row in targets):
             break
         sleep(0.2)
     killed = []
-    for run_id, pid in targets:
-        if pid_alive(pid):
+    for run_id, pid, row in targets:
+        if is_same_process(row):  # it may have exited and its pid been reused during the grace period
             sigkill = getattr(signal, "SIGKILL", signal.SIGTERM)
             try:
                 os.kill(pid, sigkill)

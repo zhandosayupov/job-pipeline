@@ -30,6 +30,10 @@ class ApplyFacts:
     unanswered_questions: int      # form fields with no answer in kb/answers.yaml
     similar_role_warning: bool     # another application to the same company, same track and level
     applied_today: int
+    # Topics of the form's questions (e.g. {"compensation", "visa"}), and the subset answered with
+    # a verbatim, owner-approved entry from kb/answers.yaml.
+    topics_asked: frozenset[str] = frozenset()
+    topics_preapproved: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -56,6 +60,11 @@ def decide_apply(policy: PolicyCfg, f: ApplyFacts) -> Decision:
         reasons.append("protected company: never automatic")
     if f.unanswered_questions:
         reasons.append(f"{f.unanswered_questions} question(s) without an answer in the KB")
+    sensitive = f.topics_asked & set(policy.sensitive_topics)
+    preapproved = f.topics_preapproved if policy.auto_apply_preapproved_sensitive else frozenset()
+    blocked = sensitive - preapproved
+    if blocked:
+        reasons.append(f"sensitive question(s) without a pre-approved answer: {', '.join(sorted(blocked))}")
     if f.similar_role_warning:
         reasons.append("already applied to a similar role at this company")
     level = policy.autonomy.get("apply", "L1")

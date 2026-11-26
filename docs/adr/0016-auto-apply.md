@@ -14,7 +14,10 @@ The original spec made every application L1: fill, show the owner a card, wait f
   2. **defer**: kill switch on, or the platform's daily cap reached;
   3. **dry run**: dry run is still on for the platform (the default until the owner flips it);
   4. **ask** (L1 card): protected company, any form question without an answer in
-     `kb/answers.yaml`, a similar application at the same company, or apply autonomy below L2;
+     `kb/answers.yaml`, a sensitive question (compensation, visa, notice, ...) whose answer is not
+     the owner's verbatim pre-approved entry, a similar application at the same company, or apply
+     autonomy below L2. With `auto_apply_preapproved_sensitive: false`, every sensitive question
+     means a card;
   5. otherwise **submit** (L2).
 * Auto path: `ready → filling → submitting → applied`. The fill manifest and screenshot are still
   stored, and the owner gets a report after each submission (and a daily digest), with a Withdraw

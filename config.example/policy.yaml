@@ -29,5 +29,10 @@ sensitive_topics:
   - interview_scheduling
   - offer
 
+# Applications: a form question on a sensitive topic (salary, visa, notice...) is answered
+# automatically only with the exact answer you approved in kb/answers.yaml.
+# false = every application with a sensitive question comes to you as a card.
+auto_apply_preapproved_sensitive: true
+
 # reply / email_draft may be raised to L2 only after this many approvals without edits.
 l2_min_clean_approvals: 20
