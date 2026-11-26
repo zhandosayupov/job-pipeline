@@ -18,6 +18,16 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
 - **Habr Career, getmatch, Remowork**: JS-heavy, need the browser worker (S4).
 - **hh.kz**: saved-search email alerts parsed from Gmail (S5) and search pages in the worker (S4).
 
+## Tailoring (after S3)
+
+- **KB extraction helper**: `jobpipe kb extract cv_canonical.md` drafting `facts.yaml` with the LLM
+  (pseudonymized) for the owner to review, instead of writing it by hand.
+- **Owner's LaTeX templates**: adapt `cv_*_hft.tex` / `cv_*_generic.tex` to the placeholders of
+  `templates/cv.tex` and pick the template by `resume_variant`.
+- **tectonic on the VM**: the binary plus its bundle cache is several hundred MB; compile on the laptop
+  worker (S4) or install it in `provision.sh` behind a flag.
+- **Re-label with the full text** before tailoring (labels use a 700-character excerpt).
+
 ## Production
 
 - **Production checks that alert when something breaks.** Unit tests only cover the code; on the

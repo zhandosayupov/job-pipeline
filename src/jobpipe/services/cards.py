@@ -134,3 +134,79 @@ def agreement(conn: sqlite3.Connection) -> tuple[int, int]:
     rows = conn.execute("SELECT data_json FROM events WHERE entity = 'job' AND kind = 'rated'").fetchall()
     votes = [json.loads(r[0]).get("vote") for r in rows]
     return votes.count("up"), len(votes)
+
+
+# --- application approval cards (S3) --------------------------------------------------------
+
+
+def application_card_text(conn: sqlite3.Connection, app_id: str) -> tuple[str, dict]:
+    app = conn.execute("SELECT * FROM applications WHERE id = ?", (app_id,)).fetchone()
+    job = conn.execute("SELECT * FROM jobs WHERE id = ?", (app["job_id"],)).fetchone()
+    data = json.loads(app["data_json"] or "{}")
+    arts = data.get("artifacts", {})
+    plan = {}
+    if arts.get("plan") and Path(arts["plan"]).exists():
+        plan = json.loads(Path(arts["plan"]).read_text(encoding="utf-8"))
+    letter = Path(arts["letter"]).read_text(encoding="utf-8") if arts.get("letter") else ""
+    lines = [("🛡 " if job["protected"] else "") + f"Заявка: {job['company']} — {job['title']}", job["url"], ""]
+    if plan.get("summary"):
+        lines += [f"Summary: {plan['summary']}", ""]
+    diff = plan.get("diff") or []
+    if diff:
+        lines.append("Отличия от канонического CV:")
+        lines += [f"  {d[:150]}" for d in diff[:12]]
+        if len(diff) > 12:
+            lines.append(f"  …ещё {len(diff) - 12}")
+        lines.append("")
+    gaps = (plan.get("plan") or {}).get("gaps") or []
+    if gaps:
+        lines.append("Пробелы: " + "; ".join(gaps[:5]))
+    if letter:
+        lines += ["", "Письмо:", letter]
+    for n in data.get("notes", [])[:5]:
+        lines.append(f"ℹ️ {n}")
+    return "\n".join(lines), arts
+
+
+def send_application_card(conn: sqlite3.Connection, notifier: Notifier, app_id: str) -> bool:
+    text, arts = application_card_text(conn, app_id)
+    rowid = conn.execute("SELECT rowid FROM applications WHERE id = ?", (app_id,)).fetchone()[0]
+    send_file = getattr(notifier, "send_file", None)
+    cv = arts.get("pdf") or arts.get("tex")
+    if cv and send_file:
+        send_file(cv, caption="CV " + ("(PDF)" if arts.get("pdf") else "(LaTeX: tectonic не установлен)"))
+    return notifier.send(text, buttons=[[("✅ Одобрить", f"a:ok:{rowid}"), ("🔁 Переделать", f"a:redo:{rowid}")],
+                                        [("🗑 Отменить", f"a:cancel:{rowid}")]])
+
+
+def handle_app_action(conn: sqlite3.Connection, clock: Clock, action: str, rowid: int) -> str:
+    app = conn.execute("SELECT rowid, * FROM applications WHERE rowid = ?", (rowid,)).fetchone()
+    if app is None:
+        return "Заявка не найдена."
+    data = json.loads(app["data_json"] or "{}")
+    if action == "ok":
+        if app["state"] != "ready":
+            return f"Заявка в состоянии {app['state']}: одобрять нечего."
+        data["approved_cv"] = True
+        conn.execute("UPDATE applications SET data_json = ? WHERE id = ?", (json.dumps(data, ensure_ascii=False),
+                                                                           app["id"]))
+        record_event(conn, clock, entity="application", entity_id=app["id"], kind="approved", actor="owner",
+                     data={"what": "cv_letter"})
+        return "✅ CV и письмо одобрены. Подача — S4 (по политике автономии)."
+    if action == "redo":
+        data.pop("approved_cv", None)
+        data["blocked"] = []
+        conn.execute("UPDATE applications SET data_json = ? WHERE id = ?", (json.dumps(data, ensure_ascii=False),
+                                                                           app["id"]))
+        if app["state"] == "ready":
+            transition(conn, clock, "application", app["id"], "tailoring", expected="ready", actor="owner")
+            transition(conn, clock, "application", app["id"], "draft", expected="tailoring", actor="owner")
+        elif app["state"] != "draft":
+            return f"Заявка в состоянии {app['state']}: переделать нельзя."
+        return "🔁 Переделаю при следующем запуске тейлоринга (раз в час) или командой `jobpipe run tailor`."
+    if action == "cancel":
+        if app["state"] in ("withdrawn", "rejected", "offer"):
+            return f"Заявка уже {app['state']}."
+        transition(conn, clock, "application", app["id"], "withdrawn", actor="owner")
+        return "🗑 Заявка отменена."
+    return "Неизвестное действие."

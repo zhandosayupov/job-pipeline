@@ -1,0 +1,25 @@
+% jobpipe one-page CV template (layout only). Placeholders are the dollar-prefixed names below;
+% never write them in a comment: Template substitutes them everywhere. Content comes only from the
+% knowledge base (ADR 0008).
+\documentclass[10pt]{article}
+\usepackage[a4paper,margin=1.5cm]{geometry}
+\usepackage[T2A,T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[english,russian]{babel}
+\usepackage{enumitem}
+\usepackage[hidelinks]{hyperref}
+\setlist[itemize]{leftmargin=1.2em,itemsep=1pt,topsep=2pt}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\newcommand{\cvsection}[1]{\vspace{6pt}{\large\bfseries #1}\par\vspace{1pt}\hrule\vspace{4pt}}
+\begin{document}
+{\LARGE\bfseries $name}\par
+\vspace{2pt}$contact\par
+$summary
+\cvsection{Experience}
+$experience
+\cvsection{Education}
+$education
+\cvsection{Skills}
+$skills
+\end{document}

@@ -194,6 +194,12 @@ class BotService:
         with self._conn() as conn:
             return handle_job_action(conn, self.clock, self.cfg, action, rowid)
 
+    def app_action(self, action: str, rowid: int) -> str:
+        from ..services.cards import handle_app_action
+
+        with self._conn() as conn:
+            return handle_app_action(conn, self.clock, action, rowid)
+
     def rate_next(self):
         from ..services.cards import next_rating_card
 
@@ -286,6 +292,15 @@ def build_dispatcher(service: BotService, owner_id: int) -> Dispatcher:
         if cb.message is not None:
             await cb.message.edit_reply_markup(reply_markup=None)
             await cb.message.answer(result, disable_web_page_preview=True)
+
+    @dp.callback_query(F.data.startswith("a:"))
+    async def _app_button(cb: CallbackQuery) -> None:
+        _, action, rowid = cb.data.split(":", 2)
+        result = await asyncio.to_thread(service.app_action, action, int(rowid))
+        await cb.answer(result[:190])
+        if cb.message is not None:
+            await cb.message.edit_reply_markup(reply_markup=None)
+            await cb.message.answer(result)
 
     @dp.callback_query(F.data.startswith("r:"))
     async def _rate_button(cb: CallbackQuery) -> None:

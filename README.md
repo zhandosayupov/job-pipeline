@@ -16,7 +16,8 @@ plan: [docs/plan.html](docs/plan.html) · parked for later: [docs/TODO.md](docs/
 | S0 | skeleton: config, SQLite + migrations, state machines, events, task queue, LLM router, bot (`/status` `/pause` `/resume`), systemd, provisioning, CI | done, deployed |
 | S1 | 10 sources, prefilter, dedupe, closures, daily digest | in review |
 | S2 | LLM labeling, shortlist, protected pool, Telegram cards with buttons, `/rate` | in review (stacked on S1) |
-| S3–S6 | tailoring, applying, inbox, hardening | planned |
+| S3 | knowledge base, truth gate, CV tailoring (LaTeX), cover letter, approval cards | in review (stacked on S2) |
+| S4–S6 | applying, inbox, hardening | planned |
 
 ## Ground rules (enforced in code)
 
@@ -75,6 +76,8 @@ git clone https://github.com/zhandosayupov/job-pipeline.git /tmp/jp && bash /tmp
 | `jobpipe llm ping` | one call through the LLM router |
 | `jobpipe run collect [--sources a,b] [--dry-run]` | fetch sources, prefilter, dedupe (timer: every 3 h, 08–23) |
 | `jobpipe run label [--limit N]` | LLM labeling + shortlist + cards (timer: 20 min after collect) |
+| `jobpipe run tailor [--limit N]` | CV + letter for application drafts, approval card (timer: hourly) |
+| `jobpipe kb check [--dir D]` | validate the knowledge base, run the truth gate over it |
 | `jobpipe run digest [--dry-run]` | daily digest to Telegram (timer: 09:00) |
 | `jobpipe jobs list [--state S]` / `jobs dropped` | inspect jobs, audit the filters |
 | `jobpipe backup` | online SQLite backup (timer: 03:00 Almaty) |

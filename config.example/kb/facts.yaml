@@ -1,0 +1,42 @@
+# EXAMPLE facts for "Alex Example". Every CV line and letter sentence must come from here.
+# contribution: me = the owner did it; team = the team did it (CV says "team"); led = the owner led it.
+roles:
+  - {id: searchco, employer: SearchCo, title: Software Engineer (C++), start: 2023-07, location: Example City}
+  - {id: uni-lab, employer: Example State University, title: Research Assistant, start: 2022-02, end: 2023-06}
+
+facts:
+  - id: searchco-latency
+    role: searchco
+    statement: Cut p99 latency of the ranking service by 35% by redesigning its memory allocator usage
+    phrasings:
+      - Reduced ranking-service p99 latency by 35% through allocator redesign
+    tech: [C++, Linux, perf]
+    tags: [hft, search, performance, cpp]
+  - id: searchco-index
+    role: searchco
+    statement: Built an incremental index updater handling 2 billion documents per day
+    phrasings:
+      - Developed an incremental indexer for 2B documents/day
+    tech: [C++, Kafka]
+    tags: [search, backend, distributed, cpp]
+  - id: searchco-oncall
+    role: searchco
+    statement: Took part in the on-call rotation for the search backend
+    kind: responsibility
+    contribution: team
+    tech: [Kubernetes, Grafana]
+    tags: [backend, infra]
+  - id: searchco-go-tool
+    role: searchco
+    statement: Wrote a Go service that replays production traffic for load tests
+    tech: [Go, gRPC]
+    tags: [backend, infra]
+  - id: lab-sim
+    role: uni-lab
+    statement: Implemented a parallel order-book simulator in C++ for a market microstructure study
+    tech: [C++, OpenMP]
+    tags: [hft, cpp, research]
+  - id: award-icpc
+    kind: award
+    statement: ICPC regional finalist, 2022
+    tags: [cpp, algorithms]

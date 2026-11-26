@@ -1,0 +1,9 @@
+[Unit]
+Description=jobpipe: tailor application drafts hourly, 08-23 Almaty time
+
+[Timer]
+OnCalendar=*-*-* 08..23:40:00 Asia/Almaty
+Persistent=true
+
+[Install]
+WantedBy=timers.target
