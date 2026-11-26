@@ -43,6 +43,15 @@ retention:                  # ADR 0018: daily at 04:00; `jobpipe run retention -
     job: [company, title, url, fingerprint, source]
     application: [company, title, url, platform]
 
+label:                      # S2 (spec §7)
+  batch_size: 20
+  max_jobs_per_run: 200
+  daily_max_jobs: 600         # budget guard: labeling stops for the day after this many
+  shortlist_threshold: 60     # score >= this and action != skip -> shortlisted
+  alert_threshold: 80         # instant Telegram card with buttons
+  # Who the labels are for. Personal details belong only in your private copy of this file.
+  profile: "Software engineer, about 3 years of C++ and backend experience. Prefers low-latency, trading, search, infrastructure and distributed-systems roles."
+
 http:
   host: 127.0.0.1
   port: 8080

@@ -1,0 +1,9 @@
+[Unit]
+Description=jobpipe: label 20 minutes after each collect run (Almaty time)
+
+[Timer]
+OnCalendar=*-*-* 08,11,14,17,20,23:20:00 Asia/Almaty
+Persistent=true
+
+[Install]
+WantedBy=timers.target

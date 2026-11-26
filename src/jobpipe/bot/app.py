@@ -12,9 +12,16 @@ from collections.abc import Awaitable, Callable
 from contextlib import closing
 from typing import Any
 
-from aiogram import BaseMiddleware, Bot, Dispatcher
-from aiogram.filters import Command
-from aiogram.types import BotCommand, Message, TelegramObject
+from aiogram import BaseMiddleware, Bot, Dispatcher, F
+from aiogram.filters import Command, CommandObject
+from aiogram.types import (
+    BotCommand,
+    CallbackQuery,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    Message,
+    TelegramObject,
+)
 from aiohttp import web
 
 from .. import __version__
@@ -29,6 +36,10 @@ log = logging.getLogger(__name__)
 
 COMMANDS = [
     BotCommand(command="status", description="Состояние системы"),
+    BotCommand(command="shortlist", description="Лучшие вакансии"),
+    BotCommand(command="funnel", description="Воронка"),
+    BotCommand(command="sources", description="Источники"),
+    BotCommand(command="rate", description="Оценить разметку"),
     BotCommand(command="pause", description="Стоп всех внешних действий"),
     BotCommand(command="resume", description="Снять паузу"),
     BotCommand(command="help", description="Список команд"),
@@ -36,7 +47,14 @@ COMMANDS = [
 
 HELP = (
     "Команды:\n"
-    "/status — очередь, запуски, LLM, пауза\n"
+    "/status — очередь, запуски, LLM, источники, пауза\n"
+    "/shortlist — лучшие вакансии после разметки\n"
+    "/funnel — сколько вакансий и заявок на каждом этапе\n"
+    "/sources — последний запуск каждого источника\n"
+    "/rate — оценить случайную разметку (👍/👎), считает % согласия\n"
+    "/protect <компания> · /unprotect <компания> — protected pool\n"
+    "/dryrun <платформа> on|off — DRY_RUN для подачи\n"
+    "/reload — перечитать конфиг\n"
     "/pause — остановить все внешние действия и текущие задачи (≤10 с)\n"
     "/resume — снять паузу\n"
 )
@@ -96,6 +114,98 @@ class BotService:
             control.set_flag(conn, self.clock, control.PAUSED, "0", actor="owner")
         return "Пауза снята." if was else "Паузы и не было."
 
+    # --- S2: protected pool, shortlist, funnel, cards ----------------------------------
+
+    def reload(self) -> str:
+        from ..config.settings import load_config
+
+        self.cfg = load_config(self.cfg.paths.home)
+        return "Конфиг перечитан. (Задачи по таймерам и так читают его при каждом запуске.)"
+
+    def protect(self, name: str) -> str:
+        from ..services import protected as prot
+
+        if not name.strip():
+            return "Использование: /protect <компания>"
+        with self._conn() as conn:
+            added = prot.protect(self.cfg.paths.config_dir / "protected.yaml", conn, self.clock, name)
+        return f"🛡 {name}: добавлена в protected." if added else f"🛡 {name}: уже в protected."
+
+    def unprotect(self, name: str) -> str:
+        from ..services import protected as prot
+
+        if not name.strip():
+            return "Использование: /unprotect <компания>"
+        with self._conn() as conn:
+            removed = prot.unprotect(self.cfg.paths.config_dir / "protected.yaml", conn, self.clock, name)
+        return f"{name}: убрана из protected." if removed else f"{name}: в protected её нет."
+
+    def dryrun(self, platform: str, value: str) -> str:
+        if not platform or value not in ("on", "off"):
+            return "Использование: /dryrun <платформа> on|off   (например /dryrun hh off)"
+        with self._conn() as conn:
+            control.set_flag(conn, self.clock, f"dry_run.{platform}", "1" if value == "on" else "0", actor="owner")
+        return (f"DRY_RUN для {platform}: {'включён — формы только заполняются' if value == 'on' else 'выключен'}.")
+
+    def sources_text(self) -> str:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT s.source, s.status, s.finished_at, s.fetched, s.new, s.kept, s.error FROM source_runs s "
+                "JOIN (SELECT source, MAX(id) id FROM source_runs GROUP BY source) m ON m.id = s.id ORDER BY s.source"
+            ).fetchall()
+        if not rows:
+            return "Источники ещё не запускались."
+        lines = ["Источники (последний запуск):"]
+        for r in rows:
+            err = f" — {json.loads(r['error'])[0][:80]}" if r["error"] else ""
+            lines.append(f"{'✅' if r['status'] == 'ok' else '⚠️'} {r['source']}: {r['status']}, "
+                         f"получено {r['fetched']}, новых {r['new']}, прошло {r['kept']}{err}")
+        return "\n".join(lines)
+
+    def shortlist_text(self, limit: int = 15) -> str:
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT company, title, url, protected, json_extract(data_json, '$.label.score') AS score "
+                "FROM jobs WHERE state = 'shortlisted' ORDER BY protected DESC, score DESC LIMIT ?", (limit,)
+            ).fetchall()
+        if not rows:
+            return "Шортлист пуст."
+        return "Шортлист:\n" + "\n".join(
+            f"{'🛡 ' if r['protected'] else ''}{r['score'] or '?'} · {r['company']} — {r['title']}\n  {r['url']}"
+            for r in rows)
+
+    def funnel_text(self) -> str:
+        with self._conn() as conn:
+            jobs = dict(conn.execute("SELECT state, COUNT(*) FROM jobs GROUP BY state").fetchall())
+            apps = dict(conn.execute("SELECT state, COUNT(*) FROM applications GROUP BY state").fetchall())
+            from ..services.cards import agreement
+
+            up, total = agreement(conn)
+        order = ["discovered", "prefiltered", "labeled", "shortlisted", "skipped", "dropped", "closed"]
+        lines = ["Вакансии: " + ", ".join(f"{s} {jobs[s]}" for s in order if jobs.get(s))]
+        lines.append("Заявки: " + (", ".join(f"{k} {v}" for k, v in sorted(apps.items())) or "нет"))
+        if total:
+            lines.append(f"Оценка разметки: согласен {up}/{total} ({round(100 * up / total)}%)")
+        return "\n".join(lines)
+
+    def job_action(self, action: str, rowid: int) -> str:
+        from ..services.cards import handle_job_action
+
+        with self._conn() as conn:
+            return handle_job_action(conn, self.clock, self.cfg, action, rowid)
+
+    def rate_next(self):
+        from ..services.cards import next_rating_card
+
+        with self._conn() as conn:
+            return next_rating_card(conn)
+
+    def rate(self, vote: str, rowid: int) -> str:
+        from ..services.cards import record_rating
+
+        with self._conn() as conn:
+            return record_rating(conn, self.clock, rowid, vote)
+
     def health(self) -> dict[str, Any]:
         with self._conn() as conn:
             version = current_version(conn)
@@ -130,7 +240,72 @@ def build_dispatcher(service: BotService, owner_id: int) -> Dispatcher:
     async def _resume(message: Message) -> None:
         await message.answer(await asyncio.to_thread(service.resume))
 
+    @dp.message(Command("protect"))
+    async def _protect(message: Message, command: CommandObject) -> None:
+        await message.answer(await asyncio.to_thread(service.protect, command.args or ""))
+
+    @dp.message(Command("unprotect"))
+    async def _unprotect(message: Message, command: CommandObject) -> None:
+        await message.answer(await asyncio.to_thread(service.unprotect, command.args or ""))
+
+    @dp.message(Command("dryrun"))
+    async def _dryrun(message: Message, command: CommandObject) -> None:
+        parts = (command.args or "").split()
+        await message.answer(await asyncio.to_thread(service.dryrun, parts[0] if parts else "",
+                                                     parts[1] if len(parts) > 1 else ""))
+
+    @dp.message(Command("sources"))
+    async def _sources(message: Message) -> None:
+        await message.answer(await asyncio.to_thread(service.sources_text))
+
+    @dp.message(Command("shortlist"))
+    async def _shortlist(message: Message) -> None:
+        await message.answer(await asyncio.to_thread(service.shortlist_text), disable_web_page_preview=True)
+
+    @dp.message(Command("funnel"))
+    async def _funnel(message: Message) -> None:
+        await message.answer(await asyncio.to_thread(service.funnel_text))
+
+    @dp.message(Command("reload"))
+    async def _reload(message: Message) -> None:
+        await message.answer(await asyncio.to_thread(service.reload))
+
+    @dp.message(Command("rate"))
+    async def _rate(message: Message) -> None:
+        card = await asyncio.to_thread(service.rate_next)
+        if card is None:
+            await message.answer("Нечего оценивать: размеченных вакансий нет или все уже оценены.")
+            return
+        await message.answer(card[0], reply_markup=_keyboard(card[1]), disable_web_page_preview=True)
+
+    @dp.callback_query(F.data.startswith("j:"))
+    async def _job_button(cb: CallbackQuery) -> None:
+        _, action, rowid = cb.data.split(":", 2)
+        result = await asyncio.to_thread(service.job_action, action, int(rowid))
+        await cb.answer(result[:190])
+        if cb.message is not None:
+            await cb.message.edit_reply_markup(reply_markup=None)
+            await cb.message.answer(result, disable_web_page_preview=True)
+
+    @dp.callback_query(F.data.startswith("r:"))
+    async def _rate_button(cb: CallbackQuery) -> None:
+        _, vote, rowid = cb.data.split(":", 2)
+        result = await asyncio.to_thread(service.rate, vote, int(rowid))
+        await cb.answer(result[:190])
+        if cb.message is not None:
+            await cb.message.edit_reply_markup(reply_markup=None)
+            nxt = await asyncio.to_thread(service.rate_next)
+            if nxt is None:
+                await cb.message.answer(result + "\nВсё оценено.")
+            else:
+                await cb.message.answer(nxt[0], reply_markup=_keyboard(nxt[1]), disable_web_page_preview=True)
+
     return dp
+
+
+def _keyboard(buttons) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=t, callback_data=d) for t, d in row]
+                                                 for row in buttons])
 
 
 def build_web_app(service: BotService) -> web.Application:

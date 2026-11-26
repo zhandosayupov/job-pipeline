@@ -266,7 +266,7 @@ See [ADR 0004](adr/0004-llm-router.md).
 |---|---|---|
 | `run queue` | every minute | VM |
 | `run collect` | 08, 11, 14, 17, 20, 23 | VM |
-| `run label` | 07:00 + on demand (S2) | VM |
+| `run label` | 20 min after each collect | VM |
 | `run digest` | 09:00 | VM |
 | `run tailor` | after label (S3) | VM |
 | apply phases | weekdays 10–19 with jitter (S4) | laptop |
@@ -316,3 +316,4 @@ from config from S1 on.
 | [0017](adr/0017-attention-tags.md) | attention tags on states: ok / needs_human / not_ok |
 | [0018](adr/0018-retention.md) | daily retention: delete old detail, keep resolutions |
 | [0019](adr/0019-collection.md) | collection: sources, polite HTTP, prefilter, dedupe, closures, digest |
+| [0020](adr/0020-labeling-shortlist.md) | LLM labeling with verified output, shortlist, protected pool, cards, rating |

@@ -29,6 +29,10 @@ class Digest:
 
 
 def _priority(row: sqlite3.Row, sig: dict) -> int:
+    """Labeled jobs (S2) rank by their LLM score, above every unlabeled one; unlabeled ones by signals."""
+    label = sig.get("label") or {}
+    if label.get("score") is not None:
+        return 1000 + int(label["score"])
     score = 0
     score += {"explicit": 4, "relocation_only": 2}.get(sig.get("visa") or "", 0)
     score += 2 if sig.get("remote") == "remote" else 0
@@ -40,7 +44,10 @@ def _priority(row: sqlite3.Row, sig: dict) -> int:
 
 def _line(row: sqlite3.Row, sig: dict, also: list[str] | None = None) -> str:
     marks = []
-    visa = sig.get("visa")
+    label = sig.get("label") or {}
+    if label.get("score") is not None:
+        marks.append(f"{label['score']}/100 {label.get('track', '')}".strip())
+    visa = label.get("visa") if label.get("visa") not in (None, "unknown") else sig.get("visa")
     if visa == "explicit":
         marks.append("виза ✓")
     elif visa == "relocation_only":

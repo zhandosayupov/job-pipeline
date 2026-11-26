@@ -111,6 +111,17 @@ def cmd_run(cfg: AppConfig, args) -> int:
         return 0
     if args.what == "collect":
         return _run_collect(cfg, conn, args)
+    if args.what == "label":
+        from .services import cards, label
+
+        notifier = _notifier(cfg)
+        res = label.run(conn, SystemClock(), cfg, _router_factory(cfg, conn)(), notifier,
+                        limit=args.limit)
+        sent = cards.send_cards(conn, notifier, res.shortlisted_ids, cfg.settings.label.alert_threshold)
+        print(f"labeled {res.labeled}, shortlisted {res.shortlisted} (protected {res.protected}), "
+              f"skipped {res.skipped}, failed batches {res.failed_batches}, cards sent {sent}"
+              + (", daily budget reached" if res.budget_stop else ""))
+        return 0 if not res.failed_batches or res.labeled else 1
     if args.what == "digest":
         from .services import digest
 
@@ -292,6 +303,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--max-seconds", type=float, default=None)
     run.add_argument("--types", help="comma-separated task types to take")
     run.add_argument("--sources", help="collect: comma-separated source names (also runs disabled ones)")
+    run.add_argument("--limit", type=int, help="label: at most this many jobs")
     run.add_argument("--dry-run", action="store_true",
                      help="retention/collect: work on a copy, change nothing; digest: print instead of sending")
     run.set_defaults(fn=cmd_run)

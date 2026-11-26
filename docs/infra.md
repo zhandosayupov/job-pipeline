@@ -100,7 +100,18 @@ jp run digest --dry-run                   # print what the 09:00 digest would se
 jp jobs dropped                           # why jobs were filtered out
 ```
 
-Timers: `jobpipe-collect.timer` (08, 11, 14, 17, 20, 23 Almaty) and `jobpipe-digest.timer` (09:00).
+Timers: `jobpipe-collect.timer` (08, 11, 14, 17, 20, 23 Almaty), `jobpipe-label.timer` (20 minutes
+later) and `jobpipe-digest.timer` (09:00).
+
+## Labeling (S2)
+
+```bash
+jp run label --limit 20                   # one small batch to check the LLM and the prompt
+```
+
+Bot: `/shortlist`, `/funnel`, `/rate` (rate 30 labels: the S2 done-condition is >= 80% agreement),
+`/protect <company>`, `/unprotect <company>`. Copy `config.example/protected.yaml` to
+`/var/lib/jobpipe/config/` and add companies you are in a process with.
 
 ## Operations
 

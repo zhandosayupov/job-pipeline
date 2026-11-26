@@ -23,6 +23,7 @@ from . import control
 from . import text as T
 from .events import create_entity, transition
 from .prefilter import decide
+from .protected import ProtectedPool
 
 log = logging.getLogger(__name__)
 LIVE_STATES = ("prefiltered", "labeled", "shortlisted")
@@ -38,6 +39,7 @@ class SourceResult:
     kept: int = 0
     dropped: int = 0
     closed: int = 0
+    protected: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -57,6 +59,7 @@ class Collector:
         self.http = http
         self.notifier = notifier
         self.registry = registry or SOURCES
+        self.pool = ProtectedPool(cfg.protected)
 
     def run(self, only: list[str] | None = None) -> list[SourceResult]:
         if control.is_paused(self.conn):
@@ -157,8 +160,17 @@ class Collector:
         transition(self.conn, self.clock, "job", p.id, "prefiltered", actor="collect")
         if self._dedupe(p, fp):
             res.dropped += 1
-        else:
-            res.kept += 1
+            return
+        res.kept += 1
+        entry = self.pool.match(p.company, p.url, p.source, p.source_job_id)
+        if entry:
+            with tx(self.conn):
+                self.conn.execute("UPDATE jobs SET protected = 1 WHERE id = ?", (p.id,))
+            res.protected += 1
+            self.notifier.send(
+                f"🛡 Protected: {p.company} — {p.title}\n{p.location or ''}\n{p.url}\n"
+                f"Причина: {entry.reason}. Автоматически не подаём: разметка и карточка придут отдельно."
+            )
 
     def _drop(
         self, job_id: str, expected: str, rule: str, matched: str | None, duplicate_of: str | None = None
