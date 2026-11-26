@@ -54,6 +54,13 @@ class Task:
 class FailOutcome:
     dead: bool
     retry_in_s: float | None
+    attempts: int
+
+
+@dataclass(frozen=True)
+class ReclaimResult:
+    returned: int
+    dead: list[Task]
 
 
 class Queue:
@@ -104,16 +111,37 @@ class Queue:
 
     # --- consuming -------------------------------------------------------------------
 
-    def reclaim_expired(self) -> int:
-        """Return tasks whose lease expired (their runner died) to pending. No attempt is counted."""
+    def reclaim_expired(self) -> ReclaimResult:
+        """Return tasks whose lease expired (their runner died) to pending. This is not counted as
+        an attempt, but `reclaims` is: a task that kills its runner `max_reclaims` times (OOM,
+        timeout) is dead-lettered instead of looping forever."""
         now = iso(self.clock.now())
+        returned, dead = 0, []
         with tx(self.conn):
-            cur = self.conn.execute(
-                "UPDATE tasks SET status = 'pending', lease_owner = NULL, lease_until = NULL, updated_at = ? "
-                "WHERE status = 'running' AND lease_until < ?",
-                (now, now),
-            )
-        return cur.rowcount
+            rows = self.conn.execute(
+                "SELECT * FROM tasks WHERE status = 'running' AND lease_until < ?", (now,)
+            ).fetchall()
+            for row in rows:
+                reclaims = row["reclaims"] + 1
+                if reclaims >= self.cfg.max_reclaims:
+                    error = f"lease expired {reclaims} times: the runner died mid-task (OOM or timeout?)"
+                    self.conn.execute(
+                        "UPDATE tasks SET status = 'dead', reclaims = ?, last_error = ?, lease_owner = NULL, "
+                        "lease_until = NULL, updated_at = ? WHERE id = ?",
+                        (reclaims, error, now, row["id"]),
+                    )
+                    record_event(self.conn, self.clock, entity="task", entity_id=str(row["id"]), kind="transition",
+                                 from_state="running", to_state="dead", data={"type": row["type"], "error": error})
+                    dead.append(Task.from_row(self.conn.execute(
+                        "SELECT * FROM tasks WHERE id = ?", (row["id"],)).fetchone()))
+                else:
+                    self.conn.execute(
+                        "UPDATE tasks SET status = 'pending', reclaims = ?, lease_owner = NULL, lease_until = NULL, "
+                        "updated_at = ? WHERE id = ?",
+                        (reclaims, now, row["id"]),
+                    )
+                    returned += 1
+        return ReclaimResult(returned, dead)
 
     def lease(self, owner: str, types: list[str] | None = None) -> Task | None:
         """Atomically take the next due task, or None."""
@@ -172,7 +200,7 @@ class Queue:
                 record_event(self.conn, self.clock, entity="task", entity_id=str(task_id), kind="transition",
                              from_state="running", to_state="dead",
                              data={"type": row["type"], "attempts": attempts, "error": error[:300]})
-                return FailOutcome(dead=True, retry_in_s=None)
+                return FailOutcome(dead=True, retry_in_s=None, attempts=attempts)
             delay = backoff_delay(attempts, tcfg.backoff_base_s, tcfg.backoff_cap_s, self.rng)
             self.conn.execute(
                 "UPDATE tasks SET status = 'pending', attempts = ?, last_error = ?, next_run_at = ?, "
@@ -181,7 +209,7 @@ class Queue:
             )
             record_event(self.conn, self.clock, entity="task", entity_id=str(task_id), kind="retry",
                          data={"attempt": attempts, "retry_in_s": round(delay, 1), "error": error[:300]})
-        return FailOutcome(dead=False, retry_in_s=delay)
+        return FailOutcome(dead=False, retry_in_s=delay, attempts=attempts)
 
     # --- inspection ------------------------------------------------------------------
 

@@ -81,7 +81,7 @@ for unit in "$APP_DIR"/ops/systemd/*.{service,timer}; do
   install -m 644 "$unit" "/etc/systemd/system/$(basename "$unit")"
 done
 systemctl daemon-reload
-systemctl enable --now jobpipe-queue.timer jobpipe-backup.timer
+systemctl enable --now jobpipe-queue.timer jobpipe-backup.timer jobpipe-retention.timer
 
 if grep -qE '^TELEGRAM_BOT_TOKEN=.+' "$ETC_DIR/secrets.env" \
    && grep -qE '^\s*owner_id:\s*[0-9]+' "$HOME_DIR/config/settings.yaml"; then

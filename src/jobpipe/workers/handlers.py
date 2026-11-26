@@ -24,6 +24,7 @@ def selftest_sleep(task: Task, ctx: HandlerContext) -> None:
     seconds = float(task.payload.get("seconds", 60))
     end = time.monotonic() + seconds
     while time.monotonic() < end:
+        ctx.guard()  # cooperative stop on /pause or SIGTERM
         time.sleep(0.2)
 
 

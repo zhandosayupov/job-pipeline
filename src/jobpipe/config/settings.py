@@ -5,12 +5,12 @@ Every file is optional; a missing file means defaults. Secrets never appear in r
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -34,7 +34,9 @@ class TaskTypeCfg(_Model):
 
 
 class QueueCfg(_Model):
-    lease_seconds: int = 300
+    # Must exceed runner.hard_timeout_s, or a task still running legitimately could be reclaimed.
+    lease_seconds: int = 600
+    max_reclaims: int = 3
     default: TaskTypeCfg = TaskTypeCfg()
     types: dict[str, TaskTypeCfg] = Field(default_factory=dict)
 
@@ -43,8 +45,26 @@ class QueueCfg(_Model):
 
 
 class RunnerCfg(_Model):
-    max_seconds: int = 240
+    max_seconds: int = 240        # stop taking new tasks after this
+    hard_timeout_s: int = 300     # must equal TimeoutStartSec in ops/systemd/jobpipe-queue.service
     kill_grace_s: float = 8.0
+
+
+class RetentionCfg(_Model):
+    """ADR 0018. Days after which old rows are deleted or compacted to their resolution."""
+
+    tasks_done_days: int = 7
+    tasks_dead_days: int = 30
+    runs_days: int = 14
+    llm_calls_days: int = 35          # rolled up into llm_daily before deletion
+    events_days: int = 60             # application/conversation events are kept: they are the funnel
+    jobs_compact_days: int = 30       # finished jobs keep only `keep_fields`
+    applications_compact_days: int = 180
+    side_effects_compact_days: int = 90   # keys are kept forever (idempotency); payload dropped
+    keep_fields: dict[str, list[str]] = Field(default_factory=lambda: {
+        "job": ["company", "title", "url", "fingerprint", "source"],
+        "application": ["company", "title", "url", "platform"],
+    })
 
 
 class BackupCfg(_Model):
@@ -64,8 +84,45 @@ class Settings(_Model):
     queue: QueueCfg = QueueCfg()
     runner: RunnerCfg = RunnerCfg()
     backup: BackupCfg = BackupCfg()
+    retention: RetentionCfg = RetentionCfg()
     http: HttpCfg = HttpCfg()
     log_level: str = "INFO"
+
+    @model_validator(mode="after")
+    def _lease_outlives_runner(self) -> Settings:
+        if self.queue.lease_seconds <= self.runner.hard_timeout_s:
+            raise ValueError(
+                f"queue.lease_seconds ({self.queue.lease_seconds}) must exceed runner.hard_timeout_s "
+                f"({self.runner.hard_timeout_s}), or running tasks get reclaimed"
+            )
+        if self.runner.max_seconds >= self.runner.hard_timeout_s:
+            raise ValueError("runner.max_seconds must be below runner.hard_timeout_s")
+        return self
+
+
+# --- policy.yaml ---------------------------------------------------------------------
+
+Level = Literal["L0", "L1", "L2"]
+
+
+class PolicyCfg(_Model):
+    """Autonomy per action (ADR 0016). L0 notify, L1 draft + owner Approve, L2 act + report."""
+
+    autonomy: dict[str, Level] = Field(default_factory=lambda: {
+        "apply": "L2",
+        "reply": "L1",
+        "email_draft": "L1",
+    })
+    # Applications per platform per day; reaching it defers the rest to tomorrow.
+    daily_caps: dict[str, int] = Field(default_factory=lambda: {"hh": 20, "greenhouse": 10, "lever": 10,
+                                                                 "ashby": 10})
+    # Messages touching these never go out without Approve, whatever the configured level.
+    sensitive_topics: list[str] = Field(default_factory=lambda: [
+        "compensation", "start_date", "notice_period", "visa", "citizenship", "reason_for_leaving",
+        "references", "interview_scheduling", "offer",
+    ])
+    # Messages (not applications) may be raised to L2 only after this many clean approvals.
+    l2_min_clean_approvals: int = 20
 
 
 # --- llm.yaml ------------------------------------------------------------------------
@@ -164,6 +221,7 @@ class AppConfig:
     settings: Settings
     llm: LLMConfig
     secrets: Secrets
+    policy: PolicyCfg = field(default_factory=PolicyCfg)
 
 
 def resolve_paths(home: Path | None = None) -> Paths:
@@ -200,6 +258,7 @@ def load_config(home: Path | None = None, env: dict[str, str] | None = None) -> 
     paths = resolve_paths(home)
     settings = Settings.model_validate(_read_yaml(paths.config_dir / "settings.yaml"))
     llm = LLMConfig.model_validate(_read_yaml(paths.config_dir / "llm.yaml"))
+    policy = PolicyCfg.model_validate(_read_yaml(paths.config_dir / "policy.yaml"))
     values: dict[str, str] = {}
     if paths.secrets_file.exists():
         values.update(parse_env_file(paths.secrets_file.read_text(encoding="utf-8")))
@@ -208,4 +267,4 @@ def load_config(home: Path | None = None, env: dict[str, str] | None = None) -> 
     for key in wanted:
         if environ.get(key):
             values[key] = environ[key]
-    return AppConfig(paths=paths, settings=settings, llm=llm, secrets=Secrets(values))
+    return AppConfig(paths=paths, settings=settings, llm=llm, secrets=Secrets(values), policy=policy)

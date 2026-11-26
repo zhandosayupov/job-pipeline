@@ -10,6 +10,7 @@ from zoneinfo import ZoneInfo
 from .. import __version__
 from ..adapters.storage.db import current_version
 from ..clock import Clock, iso, parse_iso
+from ..domain import states
 from ..services import control
 from ..services.llm_router import provider_status
 from ..services.queue import Queue
@@ -30,7 +31,28 @@ class StatusSnapshot:
     llm_today: list[dict]
     providers: dict[str, str]
     db_size_kb: int
+    unknown_effects: list[str] = field(default_factory=list)
+    needs_human: dict[str, int] = field(default_factory=dict)
     notes: list[str] = field(default_factory=list)
+
+
+def needs_human_counts(conn: sqlite3.Connection) -> dict[str, int]:
+    """How many items per kind wait for the owner (attention tag needs_human, ADR 0017)."""
+    out: dict[str, int] = {}
+    for entity, table in (("job", "jobs"), ("application", "applications"), ("conversation", "conversations")):
+        tagged = sorted(states.states_tagged(entity, states.Attention.NEEDS_HUMAN))
+        clause = f"state IN ({', '.join('?' for _ in tagged)})" if tagged else "0"
+        extra = " OR (state = 'shortlisted' AND protected = 1)" if entity == "job" else ""
+        n = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {clause}{extra}", tagged).fetchone()[0]
+        if n:
+            out[entity] = n
+    for entity, table, col in (("task", "tasks", "status"), ("side_effect", "side_effects", "status")):
+        tagged = sorted(states.states_tagged(entity, states.Attention.NEEDS_HUMAN))
+        n = conn.execute(f"SELECT COUNT(*) FROM {table} WHERE {col} IN ({', '.join('?' for _ in tagged)})",
+                         tagged).fetchone()[0]
+        if n:
+            out[entity] = n
+    return out
 
 
 def gather(conn: sqlite3.Connection, clock: Clock, queue: Queue, tz: str, db_path: str | None) -> StatusSnapshot:
@@ -63,6 +85,8 @@ def gather(conn: sqlite3.Connection, clock: Clock, queue: Queue, tz: str, db_pat
         llm_today=[dict(r) for r in llm],
         providers=provider_status(conn, clock),
         db_size_kb=size,
+        unknown_effects=control.SideEffects(conn, clock).unknown(),
+        needs_human=needs_human_counts(conn),
     )
 
 
@@ -80,6 +104,13 @@ def render(s: StatusSnapshot) -> str:
         + (", ".join(f"{k} {v}" for k, v in sorted(s.tasks.items())) if s.tasks else "пусто")
         + (f" · к запуску сейчас {s.due}" if s.due else ""),
     ]
+    if s.needs_human:
+        names = {"job": "вакансии", "application": "заявки", "conversation": "переписки",
+                 "task": "dead-задачи", "side_effect": "неизвестный исход"}
+        lines.insert(2, "Ждёт тебя: " + ", ".join(f"{names.get(k, k)} {v}" for k, v in s.needs_human.items()))
+    if s.unknown_effects:
+        lines.append("Исход неизвестен (реши: jobpipe effects resolve KEY done|failed|reset):")
+        lines += [f"  {k}" for k in s.unknown_effects[:10]]
     if s.dead:
         lines.append("Dead-letter (последние):")
         lines += [f"  #{i} {t}: {err[:80]}" for i, t, err in s.dead]

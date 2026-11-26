@@ -1,0 +1,33 @@
+# Autonomy policy (ADR 0016). Copied to $JOBPIPE_HOME/config/policy.yaml by `jobpipe init`.
+#   L0 = notify only · L1 = draft + your Approve · L2 = act, then report
+#
+# apply: L2 submits automatically only when ALL checks pass: not a protected company, every form
+# question answered from kb/answers.yaml, truth gate passed, no similar application at the same
+# company, dry run off for the platform, daily cap not reached, not paused. Any failed check turns
+# that one application into an approval card (L1). Everything submitted is reported to you.
+
+autonomy:
+  apply: L2
+  reply: L1          # messages to people stay on Approve
+  email_draft: L1
+
+daily_caps:          # applications per platform per day; the rest waits for tomorrow
+  hh: 20
+  greenhouse: 10
+  lever: 10
+  ashby: 10
+
+# A message touching any of these always needs your Approve, whatever the level above.
+sensitive_topics:
+  - compensation
+  - start_date
+  - notice_period
+  - visa
+  - citizenship
+  - reason_for_leaving
+  - references
+  - interview_scheduling
+  - offer
+
+# reply / email_draft may be raised to L2 only after this many approvals without edits.
+l2_min_clean_approvals: 20

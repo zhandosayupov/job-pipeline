@@ -75,11 +75,24 @@ def test_permanent_failure_dead_letters_at_once(q):
 def test_expired_lease_is_reclaimed_without_counting_attempt(q, clock, queue_cfg):
     tid, _ = q.enqueue("x")
     q.lease("dead-runner")
-    assert q.reclaim_expired() == 0
+    assert q.reclaim_expired().returned == 0
     clock.advance(queue_cfg.lease_seconds + 1)
-    assert q.reclaim_expired() == 1
+    assert q.reclaim_expired().returned == 1
     t = q.get(tid)
     assert t.status == "pending" and t.attempts == 0
+
+
+def test_poison_pill_dead_letters_after_max_reclaims(q, clock, queue_cfg):
+    """A task that kills its runner every time (OOM, timeout) must not loop forever."""
+    tid, _ = q.enqueue("x")
+    for i in range(queue_cfg.max_reclaims):
+        assert q.lease("runner").id == tid
+        clock.advance(queue_cfg.lease_seconds + 1)
+        res = q.reclaim_expired()
+        if i < queue_cfg.max_reclaims - 1:
+            assert res.returned == 1 and not res.dead
+    assert [t.id for t in res.dead] == [tid]
+    assert q.get(tid).status == "dead" and "lease expired" in q.get(tid).last_error
 
 
 def test_complete_and_release(q):

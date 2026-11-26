@@ -20,8 +20,12 @@ plan: [docs/plan.html](docs/plan.html).
 ## Ground rules (enforced in code)
 
 * Every CV line, letter and answer comes from your fact base; unmatched claims block the item.
-* Default autonomy is L1: draft + your Approve. Protected companies never get automatic actions.
+* Applications are submitted automatically only when every check passes (not a protected company,
+  every question answered from your KB, truth gate passed, dry run off, daily cap left); otherwise
+  you get an approval card. Messages to people always wait for your Approve on sensitive topics.
 * One application per vacancy, ever. Every external side effect is journaled before it happens.
+* Everything carries an attention tag (`ok` / `needs_human` / `not_ok`), so you see what needs you.
+* Old detail is deleted or compacted to a resolution every night: the VM has 1 GB RAM.
 * `/pause` stops everything within 10 seconds. `DRY_RUN` is on per platform until you turn it off.
 * Captcha, 2FA and security checks go to you. No solvers, proxies or fingerprint tricks.
 * Secrets and personal data never enter this repo (see below).
@@ -69,6 +73,8 @@ git clone https://github.com/zhandosayupov/job-pipeline.git /tmp/jp && bash /tmp
 | `jobpipe pause` / `resume` / `status` | same as the bot commands |
 | `jobpipe llm ping` | one call through the LLM router |
 | `jobpipe backup` | online SQLite backup (timer: 03:00 Almaty) |
+| `jobpipe run retention [--dry-run]` | delete / compact old rows (timer: 04:00 Almaty) |
+| `jobpipe effects list` / `effects resolve KEY done\|failed\|reset` | settle actions whose outcome is unknown |
 
 ## Development
 

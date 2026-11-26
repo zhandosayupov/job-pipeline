@@ -18,6 +18,9 @@ def connect(path: Path | str) -> sqlite3.Connection:
         Path(path).parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(path), isolation_level=None, timeout=5.0, check_same_thread=False)
     conn.row_factory = sqlite3.Row
+    # Must precede the first CREATE TABLE to take effect; retention then reclaims space with
+    # `PRAGMA incremental_vacuum` instead of a full VACUUM (which needs 2x disk).
+    conn.execute("PRAGMA auto_vacuum=INCREMENTAL")
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
@@ -80,9 +83,21 @@ def migrate(conn: sqlite3.Connection, clock: Clock | None = None) -> list[str]:
 
 
 def _split_sql(sql: str) -> list[str]:
-    """Split a migration into statements. Migrations must not use ';' inside string literals."""
-    lines = [ln for ln in sql.splitlines() if not ln.strip().startswith("--")]
-    return [s.strip() for s in "\n".join(lines).split(";") if s.strip()]
+    """Split a migration into complete statements using SQLite's own tokenizer, so ';' inside
+    string literals and CREATE TRIGGER ... BEGIN ... END; bodies are handled correctly."""
+    statements, buf = [], ""
+    for line in sql.splitlines(keepends=True):
+        if not buf and line.strip().startswith("--"):
+            continue
+        buf += line
+        if sqlite3.complete_statement(buf):
+            if buf.strip().strip(";").strip():
+                statements.append(buf.strip())
+            buf = ""
+    leftover = "\n".join(ln for ln in buf.splitlines() if not ln.strip().startswith("--")).strip()
+    if leftover:
+        raise ValueError(f"incomplete SQL statement at end of migration: {leftover[:80]!r}")
+    return statements
 
 
 def open_db(path: Path | str, clock: Clock | None = None) -> sqlite3.Connection:

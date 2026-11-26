@@ -8,7 +8,16 @@ import pytest
 
 from jobpipe.adapters.storage.db import open_db
 from jobpipe.clock import FakeClock
-from jobpipe.config.settings import AppConfig, LLMConfig, Paths, QueueCfg, Secrets, Settings, TaskTypeCfg
+from jobpipe.config.settings import (
+    AppConfig,
+    LLMConfig,
+    Paths,
+    QueueCfg,
+    RunnerCfg,
+    Secrets,
+    Settings,
+    TaskTypeCfg,
+)
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -49,4 +58,5 @@ def app_cfg(tmp_path, queue_cfg) -> AppConfig:
         prompts_dir=REPO / "prompts",
         secrets_file=home / "secrets.env",
     )
-    return AppConfig(paths=paths, settings=Settings(queue=queue_cfg), llm=LLMConfig(), secrets=Secrets({}))
+    settings = Settings(queue=queue_cfg, runner=RunnerCfg(max_seconds=20, hard_timeout_s=30))
+    return AppConfig(paths=paths, settings=settings, llm=LLMConfig(), secrets=Secrets({}))

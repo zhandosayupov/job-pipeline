@@ -1,6 +1,8 @@
 # 0007. Two-phase submit with a fill manifest
 
-Date: 2026-11-26 · Status: accepted (implemented in S4)
+Date: 2026-11-26 · Status: accepted (implemented in S4) · Amended by [0016](0016-auto-apply.md):
+applications are auto-submitted when every check passes; this two-phase flow is the fallback
+for applications that need the owner.
 
 ## Context
 The owner approves from a phone, sometimes hours later. Holding a filled form open that long is fragile.

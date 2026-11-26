@@ -54,6 +54,7 @@ CREATE TABLE tasks (
   max_attempts     INTEGER NOT NULL,
   next_run_at      TEXT NOT NULL,
   idempotency_key  TEXT UNIQUE,
+  reclaims         INTEGER NOT NULL DEFAULT 0,   -- lease expired with the runner dead (OOM, timeout)
   last_error       TEXT,
   lease_owner      TEXT,
   lease_until      TEXT,
@@ -67,6 +68,7 @@ CREATE TABLE side_effects (
   kind        TEXT NOT NULL,
   status      TEXT NOT NULL CHECK (status IN ('planned','done','unknown','failed')),
   run_id      INTEGER,                -- runs.id of the process that planned it
+  notified_at TEXT,                   -- owner told about an `unknown` outcome (alert delivered)
   data_json   TEXT NOT NULL DEFAULT '{}',
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL
@@ -82,6 +84,7 @@ CREATE TABLE runs (
   id           INTEGER PRIMARY KEY,
   command      TEXT NOT NULL,
   pid          INTEGER NOT NULL,
+  proc_start   TEXT,                  -- boot id + process start time; guards against pid reuse
   host         TEXT NOT NULL,
   status       TEXT NOT NULL CHECK (status IN ('running','ok','failed','killed','stopped')),
   started_at   TEXT NOT NULL,
@@ -105,6 +108,19 @@ CREATE TABLE llm_calls (
   error           TEXT
 );
 CREATE INDEX llm_calls_provider_ts ON llm_calls(provider, ts);
+
+-- Daily roll-up of llm_calls; retention folds old rows in here before deleting them.
+CREATE TABLE llm_daily (
+  day          TEXT NOT NULL,         -- YYYY-MM-DD (UTC)
+  provider     TEXT NOT NULL,
+  task         TEXT NOT NULL,
+  calls        INTEGER NOT NULL DEFAULT 0,
+  ok           INTEGER NOT NULL DEFAULT 0,
+  tokens_in    INTEGER NOT NULL DEFAULT 0,
+  tokens_out   INTEGER NOT NULL DEFAULT 0,
+  cost_usd     REAL NOT NULL DEFAULT 0,
+  PRIMARY KEY (day, provider, task)
+);
 
 CREATE TABLE provider_state (
   provider              TEXT PRIMARY KEY,

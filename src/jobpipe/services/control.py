@@ -6,9 +6,11 @@ import os
 import signal
 import socket
 import sqlite3
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 from ..adapters.storage.db import tx
@@ -58,10 +60,11 @@ def is_dry_run(conn: sqlite3.Connection, platform: str) -> bool:
 
 
 def start_run(conn: sqlite3.Connection, clock: Clock, command: str, pid: int | None = None) -> int:
+    pid = pid or os.getpid()
     with tx(conn):
         cur = conn.execute(
-            "INSERT INTO runs(command, pid, host, status, started_at) VALUES (?, ?, ?, 'running', ?)",
-            (command, pid or os.getpid(), socket.gethostname(), iso(clock.now())),
+            "INSERT INTO runs(command, pid, proc_start, host, status, started_at) VALUES (?, ?, ?, ?, 'running', ?)",
+            (command, pid, process_identity(pid), socket.gethostname(), iso(clock.now())),
         )
     return cur.lastrowid
 
@@ -107,6 +110,47 @@ def pid_alive(pid: int) -> bool:
     return True
 
 
+def process_identity(pid: int) -> str | None:
+    """A token that changes when a pid is reused: boot id + start time on Linux, creation time
+    on Windows. None where neither is available (then only liveness is checked)."""
+    if sys.platform.startswith("linux"):
+        try:
+            stat = Path(f"/proc/{pid}/stat").read_text()
+            # Field 2 (comm) may contain spaces and parens; fields after the last ')' start at 3.
+            start_ticks = stat[stat.rindex(")") + 2 :].split()[22 - 3]
+            boot_id = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+            return f"{boot_id}:{start_ticks}"
+        except (OSError, ValueError, IndexError):
+            return None
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        handle = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)  # QUERY_LIMITED_INFORMATION
+        if not handle:
+            return None
+        try:
+            times = [wintypes.FILETIME() for _ in range(4)]
+            if not ctypes.windll.kernel32.GetProcessTimes(handle, *(ctypes.byref(t) for t in times)):
+                return None
+            created = times[0]
+            return f"win:{(created.dwHighDateTime << 32) | created.dwLowDateTime}"
+        finally:
+            ctypes.windll.kernel32.CloseHandle(handle)
+    return None
+
+
+def is_same_process(row: sqlite3.Row) -> bool:
+    """True if the recorded run's process still exists and is the same process (not a reused pid)."""
+    pid = row["pid"]
+    if not pid_alive(pid):
+        return False
+    recorded = row["proc_start"]
+    if recorded is None:
+        return True
+    return process_identity(pid) == recorded
+
+
 @dataclass
 class KillReport:
     terminated: list[int]
@@ -116,10 +160,10 @@ class KillReport:
 
 
 def reap_stale_runs(conn: sqlite3.Connection, clock: Clock) -> int:
-    """Mark `running` rows whose process no longer exists as failed (crash, reboot)."""
+    """Mark `running` rows whose process is gone (crash, reboot, pid reused) as failed."""
     n = 0
     for row in running_runs(conn):
-        if not pid_alive(row["pid"]):
+        if not is_same_process(row):
             finish_run(conn, clock, row["id"], "failed", {"reason": "process vanished"})
             n += 1
     return n
@@ -142,7 +186,7 @@ def stop_running(
         pid = row["pid"]
         if pid == exclude_pid:
             continue
-        if not pid_alive(pid):
+        if not is_same_process(row):  # never signal a pid that now belongs to someone else
             gone.append(pid)
             finish_run(conn, clock, row["id"], "failed", {"reason": "process vanished"})
             continue
@@ -221,4 +265,35 @@ class SideEffects:
                     "UPDATE side_effects SET status = 'unknown', updated_at = ? WHERE key = ?",
                     (iso(self.clock.now()), k),
                 )
+                record_event(self.conn, self.clock, entity="side_effect", entity_id=k, kind="transition",
+                             from_state="planned", to_state="unknown")
         return keys
+
+    def unknown(self, *, only_unnotified: bool = False) -> list[str]:
+        q = "SELECT key FROM side_effects WHERE status = 'unknown'"
+        if only_unnotified:
+            q += " AND notified_at IS NULL"
+        return [r["key"] for r in self.conn.execute(q + " ORDER BY updated_at").fetchall()]
+
+    def mark_notified(self, keys: list[str]) -> None:
+        with tx(self.conn):
+            for k in keys:
+                self.conn.execute("UPDATE side_effects SET notified_at = ? WHERE key = ?",
+                                  (iso(self.clock.now()), k))
+
+    def resolve(self, key: str, outcome: str, actor: str = "owner") -> None:
+        """Owner's decision on an `unknown` or `failed` key: `done` (it happened), `failed` (it did
+        not; keep blocked), or `reset` (delete the key so the action may run again)."""
+        if outcome not in {"done", "failed", "reset"}:
+            raise ValueError(outcome)
+        with tx(self.conn):
+            row = self.conn.execute("SELECT status FROM side_effects WHERE key = ?", (key,)).fetchone()
+            if row is None:
+                raise KeyError(key)
+            if outcome == "reset":
+                self.conn.execute("DELETE FROM side_effects WHERE key = ?", (key,))
+            else:
+                self.conn.execute("UPDATE side_effects SET status = ?, updated_at = ? WHERE key = ?",
+                                  (outcome, iso(self.clock.now()), key))
+            record_event(self.conn, self.clock, entity="side_effect", entity_id=key, kind="resolved",
+                         actor=actor, from_state=row["status"], to_state=outcome)

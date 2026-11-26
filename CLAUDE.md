@@ -12,9 +12,10 @@ Self-hosted job search pipeline for one owner. Read `docs/architecture.md` and t
   CV fact or key-shaped string.
 - **Truth gate.** Anything sent on the owner's behalf (CV, letter, form answer, message) is built
   only from facts in the KB. Generated text must never add facts.
-- **Approval gate.** Outbound actions default to autonomy L1 (draft + owner Approve). Protected
-  companies and sensitive topics (compensation, notice, visa, start date, references, interviews,
-  offers) are never automatic.
+- **Autonomy gate (ADR 0016).** Applications are auto-submitted (L2) only through
+  `services.policy.decide_apply()`, when every check passes; anything else becomes an approval
+  card. Messages default to L1. Protected companies and sensitive topics (compensation, notice,
+  visa, start date, references, interviews, offers) are never automatic.
 - **Side effects are at most once.** Every external action reserves a key in `side_effects` before
   acting and checks the pause flag (`ctx.guard()`). No blind retries of submits or sends.
 - **No bypassing defences.** Captcha, 2FA, 403/429 or robots refusals stop the platform and notify

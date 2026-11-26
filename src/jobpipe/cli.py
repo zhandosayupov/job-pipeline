@@ -101,8 +101,37 @@ def cmd_run(cfg: AppConfig, args) -> int:
         summary = runner.run(max_seconds=args.max_seconds, types=types)
         log.info("queue run finished", extra={"data": summary.__dict__})
         return 0 if summary.status in {"ok", "paused", "stopped"} else 1
+    if args.what == "retention":
+        from .services.retention import run_retention
+
+        counts = run_retention(conn, SystemClock(), cfg.settings.retention, dry_run=args.dry_run)
+        print(("dry run, nothing changed: " if args.dry_run else "") +
+              ", ".join(f"{k} {v}" for k, v in counts.items()))
+        log.info("retention finished", extra={"data": {"dry_run": args.dry_run, **counts}})
+        return 0
     print(f"`run {args.what}` arrives in a later sprint", file=sys.stderr)
     return 2
+
+
+def cmd_effects(cfg: AppConfig, args) -> int:
+    """List or resolve side effects whose outcome needs the owner's decision (ADR 0014)."""
+    conn = open_db(cfg.paths.db_path)
+    se = control.SideEffects(conn, SystemClock())
+    if args.action == "resolve":
+        try:
+            se.resolve(args.key, args.outcome)
+        except KeyError:
+            print(f"no side effect with key {args.key!r}", file=sys.stderr)
+            return 1
+        print(f"{args.key}: {args.outcome}")
+        return 0
+    rows = conn.execute(
+        "SELECT key, kind, status, updated_at FROM side_effects WHERE status = ? ORDER BY updated_at DESC LIMIT 50",
+        (args.status,),
+    ).fetchall()
+    for r in rows:
+        print(f"{r['key']:<50} {r['kind']:<12} {r['status']:<8} {r['updated_at']}")
+    return 0
 
 
 def cmd_task(cfg: AppConfig, args) -> int:
@@ -189,10 +218,21 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("bot", help="run the resident Telegram bot + /healthz").set_defaults(fn=cmd_bot)
 
     run = sub.add_parser("run", help="oneshot job, started by a timer")
-    run.add_argument("what", choices=["queue", "collect", "label", "tailor", "inbox", "digest"])
+    run.add_argument("what", choices=["queue", "retention", "collect", "label", "tailor", "inbox", "digest"])
     run.add_argument("--max-seconds", type=float, default=None)
     run.add_argument("--types", help="comma-separated task types to take")
+    run.add_argument("--dry-run", action="store_true", help="retention: count, change nothing")
     run.set_defaults(fn=cmd_run)
+
+    eff = sub.add_parser("effects", help="external actions whose outcome needs your decision")
+    eff_sub = eff.add_subparsers(dest="action", required=True)
+    el = eff_sub.add_parser("list")
+    el.add_argument("--status", default="unknown", choices=["planned", "done", "failed", "unknown"])
+    er = eff_sub.add_parser("resolve")
+    er.add_argument("key")
+    er.add_argument("outcome", choices=["done", "failed", "reset"],
+                    help="done: it happened · failed: it did not, keep blocked · reset: allow it again")
+    eff.set_defaults(fn=cmd_effects)
 
     task = sub.add_parser("task", help="queue tools")
     task_sub = task.add_subparsers(dest="action", required=True)

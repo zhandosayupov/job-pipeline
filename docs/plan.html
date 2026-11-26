@@ -77,7 +77,7 @@ td:first-child{font-weight:700;white-space:nowrap}
 <header class="band">
 <div class="wrap">
 <h1>Job Pipeline: схема и план спринтов</h1>
-<p class="lead">На VM постоянно живёт один маленький бот, всё остальное запускается по расписанию и выходит. Браузер и userbot работают на твоём ноуте и сами забирают задачи с сервера. Всё, что уходит наружу (подача, письмо, ответ рекрутеру), сначала приходит тебе карточкой с кнопкой. Семь спринтов, каждый заканчивается демо и проверяемым критерием.</p>
+<p class="lead">На VM постоянно живёт один маленький бот, всё остальное запускается по расписанию и выходит. Браузер и userbot работают на твоём ноуте и сами забирают задачи с сервера. Заявки подаются сами, если все проверки пройдены, иначе приходят тебе карточкой; ответы рекрутерам всегда ждут твоего Approve. Семь спринтов, каждый заканчивается демо и проверяемым критерием.</p>
 
 <figure>
 <div class="scroll">
@@ -169,7 +169,7 @@ td:first-child{font-weight:700;white-space:nowrap}
 <line x1="732" y1="566" x2="778" y2="566" stroke="var(--ink)" stroke-width="1.6" marker-end="url(#ah)"/>
 </svg>
 </div>
-<figcaption>Красная рамка — места, где мы действуем от твоего имени, и туда ничего не уходит без твоего Approve. Ноут за NAT, поэтому сервер не стучится к нему: воркер сам спрашивает задачи. Если ноут выключен, задачи ждут, а бот пишет, что воркер офлайн.</figcaption>
+<figcaption>Красная рамка — места, где мы действуем от твоего имени: заявка уходит туда сама только после всех проверок, сообщения — только после твоего Approve. Ноут за NAT, поэтому сервер не стучится к нему: воркер сам спрашивает задачи. Если ноут выключен, задачи ждут, а бот пишет, что воркер офлайн.</figcaption>
 </figure>
 </div>
 </header>
@@ -180,7 +180,7 @@ td:first-child{font-weight:700;white-space:nowrap}
 
 <section class="band" id="route">
 <div class="wrap">
-<h2>Каждая вакансия идёт одним маршрутом, а ты видишь её только на шортлисте и перед подачей</h2>
+<h2>Каждая вакансия идёт одним маршрутом и подаётся сама, если все проверки пройдены</h2>
 <div class="route">
 <span class="st c1">Сбор<small>источники, по расписанию</small></span><span class="ar">→</span>
 <span class="st c1">Фильтр<small>ключевые слова EN+RU</small></span><span class="ar">→</span>
@@ -189,8 +189,8 @@ td:first-child{font-weight:700;white-space:nowrap}
 <span class="st c2">Шортлист<small>score ≥ порога</small></span><span class="ar">→</span>
 <span class="st c3">Тейлоринг<small>план из fact_id</small></span><span class="ar">→</span>
 <span class="st c3">Проверка правды<small>каждое утверждение = факт</small></span><span class="ar">→</span>
-<span class="st c4">Карточка<small>CV, письмо, скрин формы</small></span><span class="ar">→</span>
-<span class="st c4">Подача<small>в две фазы</small></span><span class="ar">→</span>
+<span class="st c4">Проверки<small>protected, вопросы, лимит, dry run</small></span><span class="ar">→</span>
+<span class="st c4">Авто-подача<small>или карточка тебе</small></span><span class="ar">→</span>
 <span class="st c4">Ответы<small>разбор, черновик, Approve</small></span><span class="ar">→</span>
 <span class="st c2">Воронка<small>считается из событий</small></span>
 </div>
@@ -200,8 +200,8 @@ td:first-child{font-weight:700;white-space:nowrap}
 <p>Если компания есть в <code>protected.yaml</code> (имя, алиас, домен или токен ATS), вакансия уходит в отдельную воронку, тебе сразу приходит алерт, и автоматически она никогда не подаётся. Кнопкой «подготовить черновик» ты сам запускаешь тейлоринг.</p>
 </div>
 <div>
-<h3>Подача в две фазы, потому что ты одобряешь не сразу</h3>
-<p>Фаза 1: заполнить форму, снять скриншот, сохранить манифест «поле → значение» с хэшем, закрыть вкладку. После Approve фаза 2 заполняет форму заново и сверяет хэш. Совпал — Submit, не совпал (появился новый вопрос) — карточка снова к тебе. Если воркер упал между кликом и страницей подтверждения, статус <code>submit_unknown</code>: повторять сами не будем, спросим тебя.</p>
+<h3>Подача сама, карточка только когда нужен ты</h3>
+<p>Заявка уходит без тебя, если компания не protected, на все вопросы формы есть ответ в <code>kb/answers.yaml</code>, проверка правды пройдена, похожей заявки в эту компанию нет, dry run на платформе выключен и дневной лимит не исчерпан. После подачи приходит отчёт со скриншотом. Если хоть одна проверка не прошла, будет карточка: фаза 1 заполняет и снимает скриншот, после Approve фаза 2 заполняет заново и сверяет хэш манифеста. Если воркер упал между кликом и подтверждением, статус <code>submit_unknown</code>, решаешь ты.</p>
 </div>
 </div>
 </div>
@@ -209,14 +209,16 @@ td:first-child{font-weight:700;white-space:nowrap}
 
 <section class="band alt" id="states">
 <div class="wrap">
-<h2>Три отдельных автомата состояний, каждый переход — строка в журнале событий</h2>
+<h2>У каждого состояния есть тег: всё идёт, ждёт тебя или закончилось без твоего участия</h2>
+<div class="sm"><span class="chip ok">ok — всё идёт</span><span class="chip warn">needs_human — ждёт тебя</span><span class="chip bad">not_ok — плохой исход, уже обработан</span></div>
 <h3>Вакансия</h3>
-<div class="sm"><span class="chip">discovered</span>→<span class="chip">prefiltered</span><span class="chip bad">dropped</span>→<span class="chip">labeled</span>→<span class="chip ok">shortlisted</span><span class="chip">skipped</span>→<span class="chip bad">closed</span></div>
+<div class="sm"><span class="chip ok">discovered</span>→<span class="chip ok">prefiltered</span>→<span class="chip ok">labeled</span>→<span class="chip ok">shortlisted</span> · <span class="chip bad">dropped</span><span class="chip bad">skipped</span><span class="chip bad">closed</span></div>
 <h3>Заявка</h3>
-<div class="sm"><span class="chip">draft</span>→<span class="chip">tailoring</span>→<span class="chip">ready</span>→<span class="chip warn">awaiting_approval</span>→<span class="chip">submitting</span>→<span class="chip ok">applied</span><span class="chip bad">apply_failed</span><span class="chip warn">submit_unknown</span>→<span class="chip">replied</span>→<span class="chip">screening</span>→<span class="chip">interview</span>→<span class="chip ok">offer</span><span class="chip bad">rejected</span><span class="chip">ghosted</span><span class="chip">withdrawn</span></div>
+<div class="sm"><span class="chip ok">draft</span>→<span class="chip ok">tailoring</span>→<span class="chip ok">ready</span>→<span class="chip ok">filling</span>→<span class="chip ok">submitting</span>→<span class="chip ok">applied</span>→<span class="chip warn">replied</span>→<span class="chip warn">screening</span>→<span class="chip warn">interview</span>→<span class="chip warn">offer</span></div>
+<div class="sm">запасной путь и сбои: <span class="chip warn">awaiting_approval</span><span class="chip warn">apply_failed</span><span class="chip warn">submit_unknown</span> · исходы: <span class="chip bad">rejected</span><span class="chip bad">ghosted</span><span class="chip bad">withdrawn</span></div>
 <h3>Переписка</h3>
-<div class="sm"><span class="chip">new</span>→<span class="chip">triaged</span>→<span class="chip">draft_ready</span>→<span class="chip warn">approved</span>→<span class="chip">sent</span>→<span class="chip">waiting</span></div>
-<p class="mute"><code>protected</code> — это флаг маршрута, а не состояние. <code>ghosted</code> ставит таймер, срок задаётся в конфиге. Метрики воронки никто не пишет руками, они считаются из таблицы <code>events</code>.</p>
+<div class="sm"><span class="chip ok">new</span>→<span class="chip ok">triaged</span>→<span class="chip warn">draft_ready</span>→<span class="chip ok">approved</span>→<span class="chip ok">sent</span>→<span class="chip ok">waiting</span></div>
+<p class="mute">Теги нужны для фильтра «что ждёт меня» в <code>/status</code> и в Mini App. Protected-вакансия на шортлисте тоже <code>needs_human</code>: сама она не подаётся. Dead-задачи и действия с неизвестным исходом тоже ждут тебя. Метрики воронки считаются из таблицы <code>events</code>.</p>
 </div>
 </section>
 
@@ -234,6 +236,7 @@ td:first-child{font-weight:700;white-space:nowrap}
 <tr><td>apply</td><td>будни 10–19, с разбросом</td><td>ноут</td><td>фаза 1 и фаза 2 подачи; на hh по умолчанию ≤ 20 в день</td></tr>
 <tr><td>inbox</td><td>каждые 15 мин, 08–23</td><td>VM + ноут</td><td>Gmail с VM; чат hh и Telegram с ноута</td></tr>
 <tr><td>backup</td><td>03:00</td><td>VM</td><td>SQLite online backup → age → GCS</td></tr>
+<tr><td>retention</td><td>04:00</td><td>VM</td><td>удалить старые задачи, запуски, LLM-логи; закончившиеся вакансии и заявки сжать до итога</td></tr>
 </tbody>
 </table>
 </div>
@@ -286,7 +289,7 @@ td:first-child{font-weight:700;white-space:nowrap}
 <ul>
 <li><b>Truth gate.</b> CV собирается из <code>fact_id</code> и разрешённых формулировок. Свободный текст (summary, письмо) проверяется валидатором: любое утверждение без факта блокирует отправку и приходит тебе вопросом.</li>
 <li><b>Готовые ответы.</b> Зарплата, notice, право на работу и виза берутся из <code>kb/answers.yaml</code>. На новый вопрос отвечаешь ты, и ответ предлагается сохранить.</li>
-<li><b>Уровни автономии.</b> По умолчанию L1: черновик и кнопка. L2 включаешь только ты и только после 20 одобрений без правок. Чувствительные темы и protected всегда остаются на L1.</li>
+<li><b>Уровни автономии.</b> Подача заявок по умолчанию L2: уходит сама, если все проверки пройдены, иначе карточка. Сообщения людям по умолчанию L1; L2 только после 20 одобрений без правок. Чувствительные темы и protected всегда на L1.</li>
 </ul>
 <ul>
 <li><b>Идемпотентность.</b> Одна заявка на (компания, вакансия) навсегда, ключ сохраняется до действия. Cooldown — только если задан у компании. О похожей роли там же карточка предупреждает, но не блокирует.</li>
@@ -312,7 +315,7 @@ td:first-child{font-weight:700;white-space:nowrap}
 
 <article class="sprint" id="s0" style="--k:#7c8cff"><h3><b>S0</b> Скелет и деплой</h3>
 <div class="grid3">
-<div><h4>Что делаем</h4><ul><li><code>docs/architecture.md</code> и ADR</li><li>Публичный репо, CI, leak guard в pre-commit</li><li>Конфиг в YAML, SQLite с миграциями</li><li>Автоматы состояний, журнал событий, очередь задач</li><li>LLM-роутер с одним провайдером</li><li>Бот: <code>/status</code>, <code>/pause</code>, <code>/resume</code></li><li>systemd (бот и таймеры), <code>ops/provision.sh</code></li></ul></div>
+<div><h4>Что делаем</h4><ul><li><code>docs/architecture.md</code> и ADR</li><li>Публичный репо, CI, leak guard в pre-commit</li><li>Конфиг в YAML, SQLite с миграциями</li><li>Автоматы состояний, журнал событий, очередь задач</li><li>LLM-роутер с одним провайдером</li><li>Бот: <code>/status</code>, <code>/pause</code>, <code>/resume</code></li><li>Теги состояний: ok, needs_human, not_ok</li><li>Политика автономии: авто-подача с проверками</li><li>Ночная очистка: старое удаляется или сжимается до итога</li><li>systemd (бот и таймеры), <code>ops/provision.sh</code></li></ul></div>
 <div><h4>Готово, когда</h4><ul><li>Бот отвечает на <code>/status</code> с VM</li><li>Тестовая задача ретраится с backoff и уходит в dead-letter с алертом</li><li><code>/pause</code> останавливает запущенный таймер за ≤ 10 с</li><li>CI зелёный</li></ul></div>
 <div><h4>От тебя</h4><ul><li>Аккаунт GCP и VM (по моей инструкции)</li><li>Токен бота от BotFather, твой user id</li><li>Ключ Gemini в <code>secrets.env</code></li></ul></div>
 </div></article>
@@ -340,9 +343,9 @@ td:first-child{font-weight:700;white-space:nowrap}
 
 <article class="sprint" id="s4" style="--k:#f7e463"><h3><b>S4</b> Подача</h3>
 <div class="grid3">
-<div><h4>Что делаем</h4><ul><li>Воркер на ноуте: автозапуск, long-poll по Tailscale, аренда задач с heartbeat</li><li>Подача в две фазы с манифестом</li><li>hh.kz, затем формы Greenhouse, Lever, Ashby</li><li>Капча и 2FA → ты; сначала dry-run</li><li>По желанию: Mini App, чтобы одобрять пачкой</li></ul></div>
-<div><h4>Готово, когда</h4><ul><li>10 dry-run на каждую платформу с правильным заполнением</li><li>10 одобренных реальных подач на hh.kz с подтверждением</li><li>Ни одного дубля</li></ul></div>
-<div><h4>От тебя</h4><ul><li>Поставить Tailscale на VM и ноут</li><li>Один раз войти в hh в профиле воркера</li><li>Одобрять карточки</li></ul></div>
+<div><h4>Что делаем</h4><ul><li>Воркер на ноуте: автозапуск, long-poll по Tailscale, аренда задач с heartbeat</li><li>Авто-подача (L2) после всех проверок; карточка с двумя фазами как запасной путь</li><li>hh.kz, затем формы Greenhouse, Lever, Ashby</li><li>Отчёт после каждой подачи со скриншотом</li><li>Капча и 2FA → ты; сначала dry-run на каждой платформе</li><li>Mini App: фильтр по тегу needs_human, одобрение пачкой</li></ul></div>
+<div><h4>Готово, когда</h4><ul><li>10 dry-run на каждую платформу с правильным заполнением</li><li>10 реальных авто-подач на hh.kz с подтверждением и отчётом</li><li>Каждая не прошедшая проверку заявка пришла карточкой, а не ушла сама</li><li>Ни одного дубля</li></ul></div>
+<div><h4>От тебя</h4><ul><li>Поставить Tailscale на VM и ноут</li><li>Один раз войти в hh в профиле воркера</li><li>Заполнить <code>answers.yaml</code> до выключения dry run</li><li>Выключить dry run по платформе: <code>/dryrun hh off</code></li></ul></div>
 </div></article>
 
 <article class="sprint" id="s5" style="--k:#f09a4a"><h3><b>S5</b> Входящие и ответы</h3>
@@ -368,15 +371,17 @@ td:first-child{font-weight:700;white-space:nowrap}
 <li><b>Новый продукт, публичный репо.</b> В git только код и примеры конфига. <code>kb/</code>, <code>protected.yaml</code>, ответы, данные и секреты лежат в приватной папке вне репо. Leak guard не пустит их в коммит.</li>
 <li><b>Один постоянный процесс плюс таймеры</b> вместо трёх демонов: на 1 ГБ память важнее.</li>
 <li><b>Браузер и userbot на ноуте</b>, задачи берутся через long-poll по Tailscale. Где запускать, по-прежнему задаётся в конфиге.</li>
-<li><b>Подача в две фазы</b> с манифестом и статусом <code>submit_unknown</code>.</li>
+<li><b>Авто-подача по умолчанию</b>, если все проверки пройдены; иначе карточка и подача в две фазы с манифестом. Неизвестный исход — <code>submit_unknown</code>, решаешь ты.</li>
 <li><b>Тейлоринг — это выбор, а не генерация:</b> пул вариантов, план из fact_id, замена PII по флагу.</li>
 <li><b>LLM-роутер</b> с цепочками, квотами, circuit breaker и dead-letter.</li>
 <li><b>Идемпотентность</b> по вакансии; cooldown необязателен; похожие роли — предупреждение.</li>
 <li><b>LinkedIn только для поиска</b>, подача через сайт компании; вакансии только с Easy Apply приходят уведомлением.</li>
 <li><b>Gmail по IMAP</b> вместо OAuth: токен не протухает через 7 дней.</li>
-<li><b>Одно одобрение в конце:</b> тейлоринг для вакансий выше порога запускается сам.</li>
+<li><b>Тейлоринг запускается сам</b> для вакансий выше порога; ты видишь результат в отчёте или в карточке.</li>
 <li><b>Капча и проверки решаешь ты</b> в окне воркера. Решателей, ротации прокси и подмены отпечатка нет.</li>
 <li><b>Userbot на втором аккаунте</b>, без Premium. Если аккаунт забанят, заводишь новый.</li>
+<li><b>Теги состояний</b> ok / needs_human / not_ok: один фильтр «что ждёт меня» для <code>/status</code> и Mini App.</li>
+<li><b>Ночная очистка:</b> задачи, запуски и сырые LLM-логи удаляются; закончившиеся вакансии и заявки сжимаются до итога (компания, должность, ссылка, исход), ключи идемпотентности хранятся всегда.</li>
 </ol>
 </div>
 </section>
@@ -396,7 +401,7 @@ td:first-child{font-weight:700;white-space:nowrap}
 <li>Исходящий трафик VM: карточки с PDF и скриншотами против лимита 1 ГБ в месяц.</li>
 </ul>
 </div>
-<p class="mute" style="margin-top:18px">Черновик для обсуждения, 26.11.2026. Код ещё не написан.</p>
+<p class="mute" style="margin-top:18px">Версия 2, 26.11.2026: авто-подача, теги состояний, ночная очистка, правки по ревью PR #1. Код S0 — в PR #1.</p>
 </div>
 </section>
 

@@ -115,12 +115,15 @@ See [ADR 0005](adr/0005-public-repo-private-home.md).
 | `jobs` | one row per vacancy, with `state` and source fields (grows in S1) |
 | `applications` | one row per (job) application, `state`, unique `idempotency_key` |
 | `conversations` | one row per thread with a recruiter, `state` |
-| `tasks` | the queue: type, payload, status, attempts, `next_run_at`, lease, unique `idempotency_key`, `last_error` |
-| `side_effects` | key stored **before** any external action; status `planned → done / unknown / failed` |
+| `tasks` | the queue: type, payload, status, attempts, `reclaims`, `next_run_at`, lease, unique `idempotency_key`, `last_error` |
+| `side_effects` | key stored **before** any external action; status `planned → done / unknown / failed`; `notified_at` for unknown-outcome alerts |
 | `control` | key/value switches: `paused`, `dry_run.<platform>` |
-| `runs` | each oneshot run: command, pid, host, start/finish, status. Used by the kill switch |
+| `runs` | each oneshot run: command, pid, `proc_start` (pid-reuse guard), host, start/finish, status. Used by the kill switch |
 | `llm_calls` | cost and usage ledger: provider, model, task, prompt version, tokens, latency, status |
+| `llm_daily` | daily roll-up of `llm_calls` older than the retention window |
 | `provider_state` | per-provider cooldown and circuit-breaker state |
+
+Old rows are deleted or compacted to their resolution daily ([ADR 0018](adr/0018-retention.md)).
 
 Migrations are numbered SQL files in `src/jobpipe/adapters/storage/migrations/`, applied in a
 transaction at startup. Storage sits behind repositories so SQLite can later be swapped for
@@ -161,7 +164,8 @@ stateDiagram-v2
   tailoring --> ready
   tailoring --> draft
   ready --> filling
-  filling --> awaiting_approval
+  filling --> submitting: auto (L2)
+  filling --> awaiting_approval: needs owner (L1)
   filling --> apply_failed
   awaiting_approval --> submitting
   awaiting_approval --> tailoring: edit
@@ -186,8 +190,10 @@ stateDiagram-v2
   interview --> ghosted
 ```
 
-Any non-terminal application state can also go to `withdrawn`. `filling → awaiting_approval →
-submitting` is the two-phase submit ([ADR 0007](adr/0007-two-phase-submit.md)).
+Any non-terminal application state can also go to `withdrawn`. `filling → submitting` is
+auto-apply when every check passes ([ADR 0016](adr/0016-auto-apply.md)); otherwise
+`filling → awaiting_approval → submitting` is the two-phase submit with the owner's Approve
+([ADR 0007](adr/0007-two-phase-submit.md)).
 
 ```mermaid
 stateDiagram-v2
@@ -203,10 +209,22 @@ stateDiagram-v2
   waiting --> new: inbound message
 ```
 
+### Attention tags
+
+Every state (and every task and side-effect status) carries one tag, so `/status` and the Mini App
+can show what needs the owner ([ADR 0017](adr/0017-attention-tags.md)):
+
+| tag | meaning | states |
+|---|---|---|
+| `ok` | moving along | everything not listed below |
+| `needs_human` | waiting for the owner | application: awaiting_approval, apply_failed, submit_unknown, replied, screening, interview, offer · conversation: draft_ready · protected job on the shortlist · dead task · unknown side effect |
+| `not_ok` | ended badly or filtered out, already handled | job: dropped, skipped, closed · application: rejected, ghosted, withdrawn · failed side effect |
+
 ## 7. Task queue
 
 `tasks` rows are leased with one atomic `UPDATE ... RETURNING`. A lease has an owner and an
-expiry; an expired lease returns the task to `pending`. Failures reschedule with exponential
+expiry; an expired lease returns the task to `pending` and counts a reclaim, and a task that kills
+its runner `max_reclaims` times is dead-lettered. Failures reschedule with exponential
 backoff and equal jitter (`delay = d/2 + rand(0, d/2)`, `d = min(cap, base·2^(attempt-1))`).
 After `max_attempts` the task becomes `dead` and the owner gets a Telegram alert. Enqueueing with
 an existing `idempotency_key` returns the existing task instead of creating a second one.
@@ -215,10 +233,13 @@ See [ADR 0003](adr/0003-task-queue.md).
 ## 8. Kill switch
 
 `/pause` sets `control.paused=1`, then sends SIGTERM to every process listed as running in `runs`
-and SIGKILL to any still alive after 8 s. Runners check the flag before every task and before any
-side effect; a timer started while paused exits at once. External side effects first write a
-`side_effects` row as `planned`; a run killed mid-action leaves it `planned`, and the next run
-marks it `unknown` and asks the owner instead of retrying. See [ADR 0014](adr/0014-kill-switch.md).
+(skipping any pid whose recorded start time no longer matches: a reused pid) and SIGKILL to any
+still alive after 8 s. The runner's SIGTERM handler only sets a flag; handlers stop at the next
+`ctx.guard()`. Runners check the flag before every task and before any side effect; a timer
+started while paused exits at once. External side effects first write a `side_effects` row as
+`planned`; a run killed mid-action leaves it `planned`, and the next run marks it `unknown`,
+alerts the owner until the alert is delivered, and never retries it. The owner settles it with
+`jobpipe effects resolve KEY done|failed|reset`. See [ADR 0014](adr/0014-kill-switch.md).
 
 ## 9. LLM router
 
@@ -249,6 +270,7 @@ See [ADR 0004](adr/0004-llm-router.md).
 | apply phases | weekdays 10–19 with jitter (S4) | laptop |
 | `run inbox` | every 15 min, 08–23 (S5) | VM + laptop |
 | `backup` | 03:00 | VM |
+| `run retention` | 04:00 | VM |
 
 Timers use `OnCalendar=` with `Asia/Almaty`; schedules live in `ops/systemd/` and are generated
 from config from S1 on.
@@ -256,8 +278,11 @@ from config from S1 on.
 ## 11. Safety rules in code
 
 * Truth gate: CVs are assembled from fact ids; free text is validated claim by claim (S3, ADR 0008).
-* Autonomy per action in `policy.yaml`: default L1, L2 only by the owner after 20 clean approvals,
-  never for sensitive topics or protected companies.
+* Autonomy per action in `policy.yaml`. Applications default to L2: submitted automatically when
+  every check passes (not protected, all questions answered from the KB, truth gate passed, no
+  similar application, dry run off, daily cap left), otherwise an approval card
+  ([ADR 0016](adr/0016-auto-apply.md)). Messages default to L1; L2 only after 20 clean approvals
+  and never for sensitive topics.
 * Idempotency: one application per (company, vacancy) forever; cooldowns only where configured;
   similar roles at the same company produce a warning ([ADR 0009](adr/0009-idempotency.md)).
 * `DRY_RUN` defaults to true per platform; flipping it is an explicit command.
@@ -285,3 +310,6 @@ from config from S1 on.
 | [0013](adr/0013-single-telegram-bot.md) | one Telegram bot for control, approvals, worker status, Mini App |
 | [0014](adr/0014-kill-switch.md) | kill switch: DB flag + SIGTERM/SIGKILL of recorded runs |
 | [0015](adr/0015-logging.md) | JSON logs to journald with a redaction filter |
+| [0016](adr/0016-auto-apply.md) | applications auto-submitted when every check passes; cards are the fallback |
+| [0017](adr/0017-attention-tags.md) | attention tags on states: ok / needs_human / not_ok |
+| [0018](adr/0018-retention.md) | daily retention: delete old detail, keep resolutions |

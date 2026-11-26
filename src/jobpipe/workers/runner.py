@@ -22,8 +22,8 @@ from ..services.queue import Queue, Task
 log = logging.getLogger(__name__)
 
 
-class Stopped(BaseException):
-    """Raised inside the running handler when SIGTERM arrives (kill switch)."""
+class Stopped(Exception):
+    """Raised by ctx.guard() after SIGTERM: the kill switch asked this run to stop."""
 
 
 @dataclass
@@ -34,9 +34,13 @@ class HandlerContext:
     notifier: Notifier
     side_effects: control.SideEffects
     services: dict[str, Any] = field(default_factory=dict)
+    stop_requested: Callable[[], bool] = lambda: False
 
     def guard(self) -> None:
-        """Call before any external side effect."""
+        """Call before any external side effect and inside long loops. Raises Stopped after SIGTERM
+        and Paused when the kill switch is on. (A handler stuck in one long call is SIGKILLed.)"""
+        if self.stop_requested():
+            raise Stopped()
         control.ensure_not_paused(self.conn)
 
 
@@ -65,11 +69,14 @@ class Runner:
         self._stop = False
 
     def _on_sigterm(self, signum, frame) -> None:  # pragma: no cover - exercised in a subprocess test
+        # Only set a flag: raising here could land between BEGIN and try in db.tx and leave a
+        # transaction open. Handlers notice the flag in ctx.guard(); SIGKILL covers the rest.
         self._stop = True
-        raise Stopped()
 
     def run(self, max_seconds: float | None = None, types: list[str] | None = None) -> RunSummary:
         summary = RunSummary()
+        if threading.current_thread() is threading.main_thread():
+            signal.signal(signal.SIGTERM, self._on_sigterm)  # before start_run: no unguarded window
         control.reap_stale_runs(self.conn, self.clock)
         if control.is_paused(self.conn):
             log.info("paused; queue run skipped")
@@ -78,30 +85,26 @@ class Runner:
         run_id = control.start_run(self.conn, self.clock, "run queue")
         owner = f"{socket.gethostname()}:{os.getpid()}:{run_id}"
         side_effects = control.SideEffects(self.conn, self.clock, run_id=run_id)
-        ctx = HandlerContext(self.conn, self.clock, self.cfg, self.notifier, side_effects, self.services)
-        if threading.current_thread() is threading.main_thread():
-            signal.signal(signal.SIGTERM, self._on_sigterm)
+        ctx = HandlerContext(self.conn, self.clock, self.cfg, self.notifier, side_effects, self.services,
+                             stop_requested=lambda: self._stop)
         deadline = time.monotonic() + (max_seconds or self.cfg.settings.runner.max_seconds)
         final = "ok"
         try:
-            unknown = side_effects.orphaned_to_unknown()
-            if unknown:
-                summary.unknown_side_effects = unknown
-                self.notifier.send(
-                    "Прерванные внешние действия, исход неизвестен (повторять не буду, нужно твоё решение):\n"
-                    + "\n".join(f"• {k}" for k in unknown)
-                )
-            self.queue.reclaim_expired()
-            while not self._stop and time.monotonic() < deadline:
-                if control.is_paused(self.conn):
+            side_effects.orphaned_to_unknown()
+            summary.unknown_side_effects = self._notify_unknown(side_effects)
+            for task in self.queue.reclaim_expired().dead:
+                summary.dead += 1
+                self._alert_dead(task.id, task.type, task.attempts, task.last_error or "")
+            while time.monotonic() < deadline:
+                if self._stop or control.is_paused(self.conn):
                     final = "stopped"
                     break
                 task = self.queue.lease(owner, types)
                 if task is None:
                     break
                 self._run_one(task, ctx, summary)
-        except Stopped:
-            final = "stopped"
+            if self._stop:
+                final = "stopped"
         except Exception:
             final = "failed"
             log.exception("queue run crashed")
@@ -112,6 +115,25 @@ class Runner:
                                {"done": summary.done, "retried": summary.retried, "dead": summary.dead})
         return summary
 
+    def _notify_unknown(self, side_effects: control.SideEffects) -> list[str]:
+        """Tell the owner about interrupted actions. Marked notified only once delivered, so a
+        Telegram outage means the next run tries again; /status always lists them too."""
+        keys = side_effects.unknown(only_unnotified=True)
+        if keys and self.notifier.send(
+            "Прерванные внешние действия, исход неизвестен (повторять не буду, нужно твоё решение):\n"
+            + "\n".join(f"• {k}" for k in keys)
+            + "\nРешить: jobpipe effects resolve KEY done|failed|reset"
+        ):
+            side_effects.mark_notified(keys)
+        return keys
+
+    def _alert_dead(self, task_id: int, task_type: str, attempts: int, error: str) -> None:
+        log.error("task dead-lettered", extra={"data": {"task": task_id, "type": task_type, "error": error}})
+        self.notifier.send(
+            f"Задача #{task_id} ({task_type}) ушла в dead-letter, попыток: {attempts}.\n"
+            f"Последняя ошибка: {error[:500]}"
+        )
+
     def _run_one(self, task: Task, ctx: HandlerContext, summary: RunSummary) -> None:
         handler = self.handlers.get(task.type)
         if handler is None:
@@ -121,7 +143,8 @@ class Runner:
             handler(task, ctx)
         except Stopped:
             self.queue.release(task.id)
-            raise
+            self._stop = True
+            return
         except Paused:
             self.queue.release(task.id)
             self._stop = True
@@ -140,11 +163,7 @@ class Runner:
         outcome = self.queue.fail(task.id, error, permanent=permanent)
         if outcome.dead:
             summary.dead += 1
-            log.error("task dead-lettered", extra={"data": {"task": task.id, "type": task.type, "error": error}})
-            self.notifier.send(
-                f"Задача #{task.id} ({task.type}) ушла в dead-letter, попыток: {task.attempts + 1}.\n"
-                f"Последняя ошибка: {error[:500]}"
-            )
+            self._alert_dead(task.id, task.type, outcome.attempts, error)
         else:
             summary.retried += 1
             log.warning("task failed, will retry",
