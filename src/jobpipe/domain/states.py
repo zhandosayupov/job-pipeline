@@ -41,9 +41,10 @@ APPLICATION = _table(
         "tailoring": {"ready", "draft"},
         "ready": {"filling", "tailoring"},  # tailoring: the owner asked to redo the CV/letter
         # filling -> submitting is auto-apply (L2, ADR 0016); -> awaiting_approval is the L1 path.
-        "filling": {"submitting", "awaiting_approval", "apply_failed"},
-        "awaiting_approval": {"submitting", "tailoring"},
-        "submitting": {"applied", "apply_failed", "submit_unknown"},
+        "filling": {"submitting", "awaiting_approval", "apply_failed", "ready"},  # ready: deferred (cap, pause)
+        "awaiting_approval": {"submitting", "tailoring", "ready"},  # ready: dry-run report acknowledged
+        # awaiting_approval: the form changed between fill and submit (manifest hash differs)
+        "submitting": {"applied", "apply_failed", "submit_unknown", "awaiting_approval"},
         "submit_unknown": {"applied", "apply_failed"},
         "apply_failed": {"filling"},
         "applied": {"replied", "rejected", "ghosted"},

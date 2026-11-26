@@ -269,7 +269,7 @@ See [ADR 0004](adr/0004-llm-router.md).
 | `run label` | 20 min after each collect | VM |
 | `run digest` | 09:00 | VM |
 | `run tailor` | hourly 08–23 (drafts only) | VM |
-| apply phases | weekdays 10–19 with jitter (S4) | laptop |
+| `run apply` (schedule) + worker phases | every 20 min, weekdays 10–19, jitter | VM + laptop |
 | `run inbox` | every 15 min, 08–23 (S5) | VM + laptop |
 | `backup` | 03:00 | VM |
 | `run retention` | 04:00 | VM |
@@ -318,3 +318,4 @@ from config from S1 on.
 | [0019](adr/0019-collection.md) | collection: sources, polite HTTP, prefilter, dedupe, closures, digest |
 | [0020](adr/0020-labeling-shortlist.md) | LLM labeling with verified output, shortlist, protected pool, cards, rating |
 | [0021](adr/0021-kb-truth-tailoring.md) | knowledge base, deterministic truth gate, tailoring plan, LaTeX, letter, approval |
+| [0022](adr/0022-applying.md) | worker API, form resolution on the VM, manifest hash, two-phase submit, appliers |

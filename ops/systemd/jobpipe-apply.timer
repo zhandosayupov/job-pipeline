@@ -1,0 +1,10 @@
+[Unit]
+Description=jobpipe: schedule applications for the worker, weekdays 10-19 Almaty time
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 10..18:00/20:00 Asia/Almaty
+RandomizedDelaySec=300
+Persistent=false
+
+[Install]
+WantedBy=timers.target
