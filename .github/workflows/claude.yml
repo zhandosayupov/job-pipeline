@@ -37,11 +37,17 @@ jobs:
         with:
           fetch-depth: 1
 
+      # So Claude can run the tests, lint and leak guard itself instead of asking about CI.
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.13.8"
+          python-version: "3.12"
+
       - uses: anthropics/claude-code-action@v1
         with:
           # Subscription token from `claude setup-token`. With an API key instead, use
           # anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           claude_args: |
-            --max-turns 30
-            --allowedTools "Bash(uv sync*),Bash(uv run pytest*),Bash(uv run ruff*),Bash(uv run python tools/leak_guard.py*)"
+            --max-turns 60
+            --allowedTools "Bash(uv sync*),Bash(uv run pytest*),Bash(uv run ruff*),Bash(uv run python tools/leak_guard.py*),Bash(git log*),Bash(git diff*),Bash(git show*)"

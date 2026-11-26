@@ -1,0 +1,25 @@
+[Unit]
+Description=jobpipe resident Telegram bot and /healthz
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=jobpipe
+Group=jobpipe
+Environment=JOBPIPE_HOME=/var/lib/jobpipe
+Environment=JOBPIPE_SECRETS=/etc/jobpipe/secrets.env
+Environment=PYTHONUNBUFFERED=1
+WorkingDirectory=/opt/jobpipe
+ExecStart=/opt/jobpipe/.venv/bin/jobpipe bot
+Restart=always
+RestartSec=10
+MemoryMax=200M
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/jobpipe
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

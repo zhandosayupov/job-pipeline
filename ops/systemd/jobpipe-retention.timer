@@ -1,0 +1,9 @@
+[Unit]
+Description=jobpipe: retention at 04:00 Almaty time, after the 03:00 backup
+
+[Timer]
+OnCalendar=*-*-* 04:00:00 Asia/Almaty
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>План Job Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@700;800&family=Golos+Text:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* VOICE work: technical plan, read once by the owner, dense and calm
+   IDEA a weather-station chart: zones as colour fields, the job's route as a front line
+   PICTURE the container diagram: sources, VM, laptop, LLM providers, Telegram, with labelled flows
+   COLOUR navy ground in both themes; scale blue #3b4fd8, teal #4fc1c6, yellow #f7e463, red #e8452c
+   TYPE Onest 800 for titles, Golos Text for body (both have Cyrillic)
+   LAYOUT title + conclusion across the top, diagram full width beneath; then sections stacked, sprints as a coloured scale + cards */
+:root{color-scheme:dark;--bg:#0b1433;--panel:#121d47;--panel2:#18255a;--edge:#2b3c80;--ink:#eef1ff;--mute:#aab4dc;--blue:#3b4fd8;--teal:#4fc1c6;--yel:#f7e463;--red:#e8452c}
+:root[data-theme=light]{color-scheme:dark}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html{scroll-padding-top:72px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Golos Text",system-ui,sans-serif;overflow-x:clip}
+.band{padding-block:clamp(28px,4vw,56px);padding-left:max(5vw,16px);padding-right:max(5vw,16px)}
+.wrap{max-width:1240px;margin:0 auto}
+h1,h2,h3{font-family:"Onest",system-ui,sans-serif;letter-spacing:-.02em;line-height:1.08;text-wrap:balance;margin:0}
+h1{font-size:clamp(34px,5vw,52px);font-weight:800}
+h2{font-size:clamp(24px,3vw,32px);font-weight:800;margin-bottom:14px}
+h3{font-size:19px;font-weight:700;margin-bottom:6px}
+p{margin:0 0 12px;max-width:72ch}
+.lead{font-size:18px;color:var(--ink);max-width:80ch;margin-top:14px}
+.mute{color:var(--mute)}
+a{color:var(--teal)}
+code{font-family:ui-monospace,Consolas,monospace;font-size:.92em;background:var(--panel2);padding:1px 5px;border-radius:4px;overflow-wrap:anywhere}
+.scroll{overflow-x:auto}
+nav.scroll{display:flex;gap:6px;padding:10px max(5vw,16px);background:var(--panel);border-block:1px solid var(--edge);position:relative}
+@media(min-width:900px){nav.scroll{position:sticky;top:0;z-index:5}}
+nav a{flex:none;color:var(--ink);text-decoration:none;padding:8px 12px;border-radius:6px;font-weight:500;font-size:15px}
+nav a:hover,nav a:focus-visible{background:var(--panel2);outline:2px solid var(--teal);outline-offset:-2px}
+figure{margin:22px 0 0}
+figcaption{color:var(--mute);font-size:14px;margin-top:8px;max-width:90ch}
+.diag{min-width:780px;width:100%;height:auto;display:block}
+.diag text{font-family:"Golos Text",system-ui,sans-serif}
+.alt{background:var(--panel)}
+.route{display:flex;flex-wrap:wrap;gap:8px 6px;align-items:center;margin-top:8px}
+.st{padding:8px 12px;border-radius:8px;font-weight:700;font-size:15px;color:#0b1433;white-space:nowrap}
+.st small{display:block;font-weight:500;font-size:13px}
+.ar{color:var(--mute);font-size:18px}
+.c1{background:var(--blue);color:#fff}.c2{background:var(--teal)}.c3{background:var(--yel)}.c4{background:var(--red);color:#fff}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 36px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px 28px}
+@media(max-width:760px){.grid2,.grid3{grid-template-columns:minmax(0,1fr)}}
+ul{margin:0;padding-left:20px}
+li{margin-bottom:6px}
+.sm{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 16px}
+.chip{border:1px solid var(--edge);background:var(--panel2);border-radius:999px;padding:3px 10px;font-size:14px;white-space:nowrap}
+.chip.bad{border-color:var(--red)}.chip.ok{border-color:var(--teal)}.chip.warn{border-color:var(--yel)}
+table{border-collapse:collapse;width:100%;font-size:15px}
+th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--edge);vertical-align:top}
+th{color:var(--mute);font-weight:500}
+td:first-child{font-weight:700;white-space:nowrap}
+.scale{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-radius:10px;overflow:hidden;margin:6px 0 24px}
+.scale a{display:block;padding:12px 10px;text-decoration:none;color:#0b1433;font-weight:800;font-family:"Onest",sans-serif;font-size:18px;min-height:64px}
+.scale a span{display:block;font:500 13px/1.25 "Golos Text",sans-serif}
+.scale a:focus-visible{outline:3px solid var(--ink);outline-offset:-3px}
+@media(max-width:600px){.scale{grid-template-columns:repeat(4,minmax(0,1fr))}.scale a{font-size:16px}}
+.sprint{border:1px solid var(--edge);border-left:6px solid var(--k);background:var(--panel);border-radius:10px;padding:18px 20px;margin-bottom:16px}
+.sprint h3{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.sprint h3 b{color:var(--k)}
+.sprint .grid3 h4{margin:4px 0 6px;font-size:14px;font-weight:700;color:var(--mute)}
+.sprint ul{font-size:15px}
+.dec{counter-reset:d;list-style:none;padding:0}
+.dec li{padding:10px 0;border-bottom:1px solid var(--edge)}
+.dec b{color:var(--yel)}
+</style>
+</head>
+<body>
+
+<header class="band">
+<div class="wrap">
+<h1>Job Pipeline: схема и план спринтов</h1>
+<p class="lead">На VM постоянно живёт один маленький бот, всё остальное запускается по расписанию и выходит. Браузер и userbot работают на твоём ноуте и сами забирают задачи с сервера. Заявки подаются сами, если все проверки пройдены, иначе приходят тебе карточкой; ответы рекрутерам всегда ждут твоего Approve. Семь спринтов, каждый заканчивается демо и проверяемым критерием.</p>
+
+<figure>
+<div class="scroll">
+<svg class="diag" viewBox="0 0 1000 610" role="img" aria-label="Схема контейнеров: источники вакансий отдают данные задачам на VM; на VM постоянно работает бот, остальное запускается таймерами; LLM-роутер ходит к провайдерам; ноут тянет задачи по Tailscale и запускает Chromium и userbot.">
+<defs>
+<marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ink)"/></marker>
+</defs>
+<!-- you -->
+<rect x="390" y="8" width="220" height="52" rx="10" fill="var(--yel)"/>
+<text x="500" y="31" text-anchor="middle" font-size="16" font-weight="700" fill="#0b1433">Ты · Telegram</text>
+<text x="500" y="50" text-anchor="middle" font-size="13" fill="#0b1433">кнопки, команды, /pause</text>
+<line x1="500" y1="62" x2="500" y2="128" stroke="var(--ink)" stroke-width="1.6" marker-start="url(#ah)" marker-end="url(#ah)"/>
+<text x="510" y="82" font-size="13" fill="var(--mute)">карточки ↔ решения</text>
+
+<!-- sources -->
+<rect x="10" y="90" width="210" height="330" rx="12" fill="var(--panel)" stroke="var(--blue)" stroke-width="2"/>
+<text x="26" y="116" font-size="15" font-weight="700" fill="var(--ink)">Источники</text>
+<g font-size="13" fill="var(--ink)">
+<text x="26" y="146">ATS JSON: Greenhouse,</text><text x="26" y="164">Ashby, Lever, Amazon</text>
+<text x="26" y="194">Himalayas, Jobicy, WWR,</text><text x="26" y="212">Arbeitnow, relocate.me</text>
+<text x="26" y="242">HN Who is hiring</text>
+<text x="26" y="272">t.me/s каналы</text>
+<text x="26" y="302">LinkedIn (только поиск)</text>
+<text x="26" y="320">→ ищем сайт компании</text>
+<text x="26" y="350">Gmail по IMAP:</text><text x="26" y="368">алерты hh, ответы</text>
+</g>
+<line x1="222" y1="247" x2="278" y2="247" stroke="var(--ink)" stroke-width="1.6" marker-end="url(#ah)"/>
+<text x="236" y="240" text-anchor="middle" font-size="11" fill="var(--mute)">fetch</text>
+
+<!-- VM -->
+<rect x="250" y="90" width="500" height="330" rx="12" fill="var(--panel)" stroke="var(--teal)" stroke-width="2"/>
+<text x="266" y="114" font-size="15" font-weight="700" fill="var(--ink)">VM · GCP e2-micro, 1 ГБ</text>
+<rect x="280" y="130" width="440" height="60" rx="8" fill="var(--teal)"/>
+<text x="500" y="155" text-anchor="middle" font-size="15" font-weight="700" fill="#0b1433">jobpipe-bot · запущен всегда, ~60 МБ</text>
+<text x="500" y="176" text-anchor="middle" font-size="13" fill="#0b1433">Telegram-бот · API для воркера · флаг pause</text>
+<text x="280" y="214" font-size="13" fill="var(--mute)">systemd timers: запустился, отработал, вышел</text>
+<g font-size="14" font-weight="700" text-anchor="middle" fill="var(--ink)">
+<rect x="280" y="225" width="80" height="44" rx="7" fill="var(--panel2)" stroke="var(--edge)"/><text x="320" y="252">collect</text>
+<rect x="370" y="225" width="80" height="44" rx="7" fill="var(--panel2)" stroke="var(--edge)"/><text x="410" y="252">label</text>
+<rect x="460" y="225" width="80" height="44" rx="7" fill="var(--panel2)" stroke="var(--edge)"/><text x="500" y="252">tailor</text>
+<rect x="550" y="225" width="80" height="44" rx="7" fill="var(--panel2)" stroke="var(--edge)"/><text x="590" y="252">inbox</text>
+<rect x="640" y="225" width="80" height="44" rx="7" fill="var(--panel2)" stroke="var(--edge)"/><text x="680" y="252">backup</text>
+</g>
+<line x1="385" y1="271" x2="385" y2="298" stroke="var(--ink)" stroke-width="1.6" marker-end="url(#ah)"/>
+<text x="392" y="289" font-size="12" fill="var(--mute)">пишут</text>
+<line x1="530" y1="271" x2="530" y2="298" stroke="var(--ink)" stroke-width="1.6" marker-end="url(#ah)"/>
+<text x="537" y="289" font-size="12" fill="var(--mute)">LLM</text>
+<rect x="280" y="300" width="210" height="90" rx="8" fill="var(--panel2)" stroke="var(--edge)"/>
+<text x="296" y="326" font-size="15" font-weight="700" fill="var(--ink)">SQLite (WAL)</text>
+<text x="296" y="348" font-size="13" fill="var(--mute)">jobs, applications, events,</text>
+<text x="296" y="366" font-size="13" fill="var(--mute)">tasks, llm_calls, source_runs</text>
+<rect x="510" y="300" width="210" height="90" rx="8" fill="var(--panel2)" stroke="var(--edge)"/>
+<text x="526" y="326" font-size="15" font-weight="700" fill="var(--ink)">LLM-роутер</text>
+<text x="526" y="348" font-size="13" fill="var(--mute)">цепочки, квоты, ретраи,</text>
+<text x="526" y="366" font-size="13" fill="var(--mute)">замена PII на метки</text>
+
+<!-- GCS -->
+<rect x="780" y="200" width="210" height="50" rx="10" fill="var(--panel)" stroke="var(--edge)"/>
+<text x="885" y="230" text-anchor="middle" font-size="14" fill="var(--ink)">GCS · бэкап, шифр.</text>
+<line x1="722" y1="240" x2="778" y2="240" stroke="var(--ink)" stroke-width="1.6" marker-end="url(#ah)"/>
+
+<!-- providers -->
+<rect x="780" y="275" width="210" height="145" rx="12" fill="var(--panel)" stroke="var(--edge)"/>
+<text x="796" y="300" font-size="15" font-weight="700" fill="var(--ink)">LLM-провайдеры</text>
+<g font-size="13" fill="var(--ink)"><text x="796" y="326">Gemini · Groq</text><text x="796" y="346">Cerebras · OpenRouter</text><text x="796" y="366">Mistral · платный позже</text></g>
+<text x="796" y="398" font-size="12" fill="var(--mute)">первый с остатком квоты</text>
+<line x1="722" y1="345" x2="778" y2="345" stroke="var(--ink)" stroke-width="1.6" marker-end="url(#ah)"/>
+
+<!-- laptop -->
+<line x1="340" y1="488" x2="340" y2="424" stroke="var(--ink)" stroke-width="1.6" marker-end="url(#ah)"/>
+<text x="350" y="448" font-size="13" fill="var(--mute)">тянет задачи, шлёт результат · Tailscale</text>
+<rect x="250" y="460" width="500" height="140" rx="12" fill="var(--panel)" stroke="var(--yel)" stroke-width="2"/>
+<text x="736" y="484" text-anchor="end" font-size="15" font-weight="700" fill="var(--ink)">Ноут · автозапуск</text>
+<rect x="270" y="490" width="170" height="96" rx="8" fill="var(--yel)"/>
+<text x="355" y="522" text-anchor="middle" font-size="15" font-weight="700" fill="#0b1433">worker-agent</text>
+<text x="355" y="543" text-anchor="middle" font-size="13" fill="#0b1433">~30 МБ в простое</text>
+<text x="355" y="562" text-anchor="middle" font-size="13" fill="#0b1433">низкий приоритет</text>
+<rect x="476" y="496" width="254" height="40" rx="8" fill="var(--panel2)" stroke="var(--edge)"/>
+<text x="490" y="521" font-size="14" fill="var(--ink)"><tspan font-weight="700">Chromium</tspan> · только на задачу</text>
+<rect x="476" y="546" width="254" height="40" rx="8" fill="var(--panel2)" stroke="var(--edge)"/>
+<text x="490" y="571" font-size="14" fill="var(--ink)"><tspan font-weight="700">userbot</tspan> · Telethon, 2-й акк.</text>
+<line x1="442" y1="516" x2="474" y2="516" stroke="var(--ink)" stroke-width="1.6" marker-end="url(#ah)"/>
+<line x1="442" y1="566" x2="474" y2="566" stroke="var(--ink)" stroke-width="1.6" marker-end="url(#ah)"/>
+<rect x="780" y="496" width="210" height="40" rx="8" fill="var(--panel)" stroke="var(--red)" stroke-width="2"/>
+<text x="885" y="521" text-anchor="middle" font-size="14" fill="var(--ink)">hh.kz · формы ATS</text>
+<rect x="780" y="546" width="210" height="40" rx="8" fill="var(--panel)" stroke="var(--red)" stroke-width="2"/>
+<text x="885" y="571" text-anchor="middle" font-size="14" fill="var(--ink)">чаты рекрутеров</text>
+<line x1="732" y1="516" x2="778" y2="516" stroke="var(--ink)" stroke-width="1.6" marker-end="url(#ah)"/>
+<line x1="732" y1="566" x2="778" y2="566" stroke="var(--ink)" stroke-width="1.6" marker-end="url(#ah)"/>
+</svg>
+</div>
+<figcaption>Красная рамка — места, где мы действуем от твоего имени: заявка уходит туда сама только после всех проверок, сообщения — только после твоего Approve. Ноут за NAT, поэтому сервер не стучится к нему: воркер сам спрашивает задачи. Если ноут выключен, задачи ждут, а бот пишет, что воркер офлайн.</figcaption>
+</figure>
+</div>
+</header>
+
+<nav class="scroll" aria-label="Разделы">
+<a href="#route">Маршрут вакансии</a><a href="#states">Состояния</a><a href="#schedule">Расписание</a><a href="#llm">LLM-роутер</a><a href="#worker">Ноут</a><a href="#rules">Правила</a><a href="#sprints">Спринты</a><a href="#decisions">Решения</a><a href="#check">Проверить</a>
+</nav>
+
+<section class="band" id="route">
+<div class="wrap">
+<h2>Каждая вакансия идёт одним маршрутом и подаётся сама, если все проверки пройдены</h2>
+<div class="route">
+<span class="st c1">Сбор<small>источники, по расписанию</small></span><span class="ar">→</span>
+<span class="st c1">Фильтр<small>ключевые слова EN+RU</small></span><span class="ar">→</span>
+<span class="st c1">Дедуп<small>company|title|city, ATS важнее</small></span><span class="ar">→</span>
+<span class="st c2">Разметка<small>LLM, пачки по 20</small></span><span class="ar">→</span>
+<span class="st c2">Шортлист<small>score ≥ порога</small></span><span class="ar">→</span>
+<span class="st c3">Тейлоринг<small>план из fact_id</small></span><span class="ar">→</span>
+<span class="st c3">Проверка правды<small>каждое утверждение = факт</small></span><span class="ar">→</span>
+<span class="st c4">Проверки<small>protected, вопросы, лимит, dry run</small></span><span class="ar">→</span>
+<span class="st c4">Авто-подача<small>или карточка тебе</small></span><span class="ar">→</span>
+<span class="st c4">Ответы<small>разбор, черновик, Approve</small></span><span class="ar">→</span>
+<span class="st c2">Воронка<small>считается из событий</small></span>
+</div>
+<div class="grid2" style="margin-top:26px">
+<div>
+<h3>Protected pool сходит с маршрута после разметки</h3>
+<p>Если компания есть в <code>protected.yaml</code> (имя, алиас, домен или токен ATS), вакансия уходит в отдельную воронку, тебе сразу приходит алерт, и автоматически она никогда не подаётся. Кнопкой «подготовить черновик» ты сам запускаешь тейлоринг.</p>
+</div>
+<div>
+<h3>Подача сама, карточка только когда нужен ты</h3>
+<p>Заявка уходит без тебя, если компания не protected, на все вопросы формы есть ответ в <code>kb/answers.yaml</code>, проверка правды пройдена, похожей заявки в эту компанию нет, dry run на платформе выключен и дневной лимит не исчерпан. Вопрос о зарплате всегда приходит тебе (можно переключить на вилку из самой вакансии). Вопрос о визе отвечается сам по стране вакансии: в Казахстане и странах ЕАЭС спонсорство не нужно, везде остальное просим; страна неизвестна — карточка. После подачи приходит отчёт со скриншотом. Если хоть одна проверка не прошла, будет карточка: фаза 1 заполняет и снимает скриншот, после Approve фаза 2 заполняет заново и сверяет хэш манифеста. Если воркер упал между кликом и подтверждением, статус <code>submit_unknown</code>, решаешь ты.</p>
+</div>
+</div>
+</div>
+</section>
+
+<section class="band alt" id="states">
+<div class="wrap">
+<h2>У каждого состояния есть тег: всё идёт, ждёт тебя или закончилось без твоего участия</h2>
+<div class="sm"><span class="chip ok">ok — всё идёт</span><span class="chip warn">needs_human — ждёт тебя</span><span class="chip bad">not_ok — плохой исход, уже обработан</span></div>
+<h3>Вакансия</h3>
+<div class="sm"><span class="chip ok">discovered</span>→<span class="chip ok">prefiltered</span>→<span class="chip ok">labeled</span>→<span class="chip ok">shortlisted</span> · <span class="chip bad">dropped</span><span class="chip bad">skipped</span><span class="chip bad">closed</span></div>
+<h3>Заявка</h3>
+<div class="sm"><span class="chip ok">draft</span>→<span class="chip ok">tailoring</span>→<span class="chip ok">ready</span>→<span class="chip ok">filling</span>→<span class="chip ok">submitting</span>→<span class="chip ok">applied</span>→<span class="chip warn">replied</span>→<span class="chip warn">screening</span>→<span class="chip warn">interview</span>→<span class="chip warn">offer</span></div>
+<div class="sm">запасной путь и сбои: <span class="chip warn">awaiting_approval</span><span class="chip warn">apply_failed</span><span class="chip warn">submit_unknown</span> · исходы: <span class="chip bad">rejected</span><span class="chip bad">ghosted</span><span class="chip bad">withdrawn</span></div>
+<h3>Переписка</h3>
+<div class="sm"><span class="chip ok">new</span>→<span class="chip ok">triaged</span>→<span class="chip warn">draft_ready</span>→<span class="chip ok">approved</span>→<span class="chip ok">sent</span>→<span class="chip ok">waiting</span></div>
+<p class="mute">Теги нужны для фильтра «что ждёт меня» в <code>/status</code> и в Mini App. Protected-вакансия на шортлисте тоже <code>needs_human</code>: сама она не подаётся. Dead-задачи и действия с неизвестным исходом тоже ждут тебя. Метрики воронки считаются из таблицы <code>events</code>.</p>
+</div>
+</section>
+
+<section class="band" id="schedule">
+<div class="wrap">
+<h2>Расписание задаётся в конфиге, время — по Алматы, а не по серверу</h2>
+<div class="scroll">
+<table>
+<thead><tr><th>Задача</th><th>Когда</th><th>Где</th><th>Что делает</th></tr></thead>
+<tbody>
+<tr><td>collect</td><td>каждые 3 ч, 08–23</td><td>VM</td><td>опрос источников, фильтр, дедуп, запись в source_runs</td></tr>
+<tr><td>label</td><td>07:00 и сразу для горячих</td><td>VM</td><td>разметка пачками через роутер, budget guard</td></tr>
+<tr><td>digest</td><td>09:00</td><td>VM</td><td>дайджест в Telegram, метрики, здоровье источников</td></tr>
+<tr><td>tailor</td><td>после label</td><td>VM</td><td>CV и письмо для шортлиста выше порога</td></tr>
+<tr><td>apply</td><td>будни 10–19, с разбросом</td><td>ноут</td><td>фаза 1 и фаза 2 подачи; на hh по умолчанию ≤ 20 в день</td></tr>
+<tr><td>inbox</td><td>каждые 15 мин, 08–23</td><td>VM + ноут</td><td>Gmail с VM; чат hh и Telegram с ноута</td></tr>
+<tr><td>backup</td><td>03:00</td><td>VM</td><td>SQLite online backup → age → GCS</td></tr>
+<tr><td>retention</td><td>04:00</td><td>VM</td><td>удалить старые задачи, запуски, LLM-логи; закончившиеся вакансии и заявки сжать до итога</td></tr>
+</tbody>
+</table>
+</div>
+<p class="mute" style="margin-top:12px"><code>/pause</code> ставит флаг в БД. Каждая задача проверяет его перед любым внешним действием, а бот вдобавок останавливает текущий таймер. Всё встаёт за 10 секунд.</p>
+</div>
+</section>
+
+<section class="band alt" id="llm">
+<div class="wrap">
+<h2>LLM-роутер раздаёт задачи провайдерам и сам переживает лимиты и падения</h2>
+<div class="grid2">
+<div>
+<h3>Как он выбирает</h3>
+<ul>
+<li>У каждого типа задачи своя цепочка в <code>config/llm.yaml</code>. Например, разметка: Gemini → Groq → Cerebras → OpenRouter.</li>
+<li>По каждому провайдеру считаются запросы и токены в минуту и в день. Берётся первый, у кого осталась квота.</li>
+<li>У провайдера есть флаги: JSON mode, размер контекста, <code>trains_on_data</code>.</li>
+<li>Всё пишется в <code>llm_calls</code>: токены, задержка, версия промпта, стоимость.</li>
+</ul>
+</div>
+<div>
+<h3>Что он делает при сбоях</h3>
+<ul>
+<li><b>429:</b> провайдер «остывает» до времени из <code>retry-after</code>, запрос сразу идёт следующему.</li>
+<li><b>5xx или таймаут:</b> повтор с паузой и разбросом, потом следующий провайдер.</li>
+<li><b>N ошибок подряд:</b> circuit breaker выключает провайдера на X минут.</li>
+<li><b>Невалидный JSON:</b> одна попытка исправить, потом следующий провайдер, потом dead-letter и алерт тебе.</li>
+<li><b>Личные данные:</b> при <code>pii_redaction: required</code> имя, контакты и ссылки заменяются метками до отправки и возвращаются локально.</li>
+</ul>
+</div>
+</div>
+</div>
+</section>
+
+<section class="band" id="worker">
+<div class="wrap">
+<h2>Воркер на ноуте почти невидим: в простое один лёгкий процесс, браузер только на время задачи</h2>
+<div class="grid3">
+<div><h3>Простой</h3><ul><li>Один процесс Python на asyncio, около 30 МБ, без нагрузки на CPU.</li><li>Long-poll к серверу: один запрос висит до 25 с, а не опрос каждую секунду.</li><li>Userbot (Telethon) в том же процессе, только чаты из белого списка.</li></ul></div>
+<div><h3>Работа</h3><ul><li>Chromium запускается под пачку задач и закрывается после неё, одновременно не больше одного.</li><li>Картинки, шрифты и видео блокируются там, где это не ломает форму (настройка по платформе).</li><li>Приоритет процесса BELOW_NORMAL. Подача только на зарядке и когда ты N минут не трогаешь ноут (настраивается).</li></ul></div>
+<div><h3>Без твоего участия</h3><ul><li>Планировщик задач Windows: запуск при входе, скрытое окно, перезапуск при падении.</li><li>Капча или 2FA: воркер ставит задачу на паузу, показывает окно и пишет тебе в Telegram. Ты решаешь, он продолжает.</li><li>Обновление командой из бота, без ручного git pull.</li></ul></div>
+</div>
+</div>
+</section>
+
+<section class="band alt" id="rules">
+<div class="wrap">
+<h2>Правила, которые код не может нарушить</h2>
+<div class="grid2">
+<ul>
+<li><b>Truth gate.</b> CV собирается из <code>fact_id</code> и разрешённых формулировок. Свободный текст (summary, письмо) проверяется валидатором: любое утверждение без факта блокирует отправку и приходит тебе вопросом.</li>
+<li><b>Готовые ответы.</b> Зарплата, notice, право на работу и виза берутся из <code>kb/answers.yaml</code>. На новый вопрос отвечаешь ты, и ответ предлагается сохранить.</li>
+<li><b>Уровни автономии.</b> Подача заявок по умолчанию L2: уходит сама, если все проверки пройдены, иначе карточка. Сообщения людям по умолчанию L1; L2 только после 20 одобрений без правок. Чувствительные темы и protected всегда на L1.</li>
+</ul>
+<ul>
+<li><b>Идемпотентность.</b> Одна заявка на (компания, вакансия) навсегда, ключ сохраняется до действия. Cooldown — только если задан у компании. О похожей роли там же карточка предупреждает, но не блокирует.</li>
+<li><b>Kill switch</b> <code>/pause</code> и <code>DRY_RUN=true</code> по умолчанию на каждой платформе.</li>
+<li><b>Секреты</b> только в <code>secrets.env</code> (chmod 600): не попадают в логи, git и LLM. Контакты третьих лиц в логах маскируются.</li>
+</ul>
+</div>
+</div>
+</section>
+
+<section class="band" id="sprints">
+<div class="wrap">
+<h2>Семь спринтов; следующий начинается только после демо и твоего «го»</h2>
+<div class="scale" role="list">
+<a role="listitem" href="#s0" style="background:#3b4fd8;color:#fff">S0<span>скелет и деплой</span></a>
+<a role="listitem" href="#s1" style="background:#4568d3;color:#fff">S1<span>сбор</span></a>
+<a role="listitem" href="#s2" style="background:#4fc1c6">S2<span>разметка</span></a>
+<a role="listitem" href="#s3" style="background:#a3d296">S3<span>KB и тейлоринг</span></a>
+<a role="listitem" href="#s4" style="background:#f7e463">S4<span>подача</span></a>
+<a role="listitem" href="#s5" style="background:#f09a4a">S5<span>входящие</span></a>
+<a role="listitem" href="#s6" style="background:#e8452c;color:#fff">S6<span>надёжность</span></a>
+</div>
+
+<article class="sprint" id="s0" style="--k:#7c8cff"><h3><b>S0</b> Скелет и деплой</h3>
+<div class="grid3">
+<div><h4>Что делаем</h4><ul><li><code>docs/architecture.md</code> и ADR</li><li>Публичный репо, CI, leak guard в pre-commit</li><li>Конфиг в YAML, SQLite с миграциями</li><li>Автоматы состояний, журнал событий, очередь задач</li><li>LLM-роутер с одним провайдером</li><li>Бот: <code>/status</code>, <code>/pause</code>, <code>/resume</code></li><li>Теги состояний: ok, needs_human, not_ok</li><li>Политика автономии: авто-подача с проверками</li><li>Ночная очистка: старое удаляется или сжимается до итога</li><li>systemd (бот и таймеры), <code>ops/provision.sh</code></li></ul></div>
+<div><h4>Готово, когда</h4><ul><li>Бот отвечает на <code>/status</code> с VM</li><li>Тестовая задача ретраится с backoff и уходит в dead-letter с алертом</li><li><code>/pause</code> останавливает запущенный таймер за ≤ 10 с</li><li>CI зелёный</li></ul></div>
+<div><h4>От тебя</h4><ul><li>Аккаунт GCP и VM (по моей инструкции)</li><li>Токен бота от BotFather, твой user id</li><li>Ключ Gemini в <code>secrets.env</code></li></ul></div>
+</div></article>
+
+<article class="sprint" id="s1" style="--k:#8aa0ff"><h3><b>S1</b> Сбор вакансий и дайджест</h3>
+<div class="grid3">
+<div><h4>Что делаем</h4><ul><li>ATS: Greenhouse, Ashby, Lever, Amazon плюс общие адаптеры из <code>companies.yaml</code></li><li>Himalayas, Jobicy, WWR, Arbeitnow, HN Algolia, relocate.me</li><li>t.me/s каналы с курсором по последнему посту</li><li>LinkedIn через jobspy → поиск ATS компании</li><li>Фильтр EN+RU с учётом отрицаний, дедуп, дайджест, здоровье источников</li></ul></div>
+<div><h4>Готово, когда</h4><ul><li>3 дня подряд дайджест приходит по расписанию</li><li>Каждый источник tier 1 в статусе <code>ok</code> или <code>blocked</code> с объяснением</li><li>Ноль повторных алертов</li><li>Для каждого источника записана фикстура</li></ul></div>
+<div><h4>От тебя</h4><ul><li>Просмотреть списки ключевых слов</li><li>Список Telegram-каналов</li></ul></div>
+</div></article>
+
+<article class="sprint" id="s2" style="--k:#4fc1c6"><h3><b>S2</b> Разметка, шортлист, protected pool</h3>
+<div class="grid3">
+<div><h4>Что делаем</h4><ul><li>Разметка пачками по рубрике из §7, цепочка провайдеров</li><li>Budget guard по провайдерам</li><li>Шортлист и карточки с кнопками</li><li>Protected-воронка, <code>/protect</code>, <code>/unprotect</code></li></ul></div>
+<div><h4>Готово, когда</h4><ul><li>Пачка за день размечена в пределах лимита</li><li>Ты оцениваешь 30 случайных меток, ≥ 80% совпадают с твоими</li><li>Вакансия protected-компании попадает только в protected-воронку</li></ul></div>
+<div><h4>От тебя</h4><ul><li>Ключи Groq, Cerebras, OpenRouter</li><li>Подтвердить protected-список</li><li>30 оценок меток</li></ul></div>
+</div></article>
+
+<article class="sprint" id="s3" style="--k:#a3d296"><h3><b>S3</b> База фактов и тейлоринг</h3>
+<div class="grid3">
+<div><h4>Что делаем</h4><ul><li><code>kb/facts.yaml</code> и <code>kb/answers.yaml</code></li><li>Пул вариантов CV и план из fact_id</li><li>Замена PII на метки (флаг в конфиге)</li><li>Валидатор правды, рендер через tectonic, проверка «1 страница»</li><li>Письмо ≤ 150 слов, RU или EN по вакансии; карточка с диффом</li></ul></div>
+<div><h4>Готово, когда</h4><ul><li>10 CV для реальных вакансий из шортлиста</li><li>0 утверждений без факта после твоей проверки</li><li>≥ 8 из 10 одобрены без правок фактов</li></ul></div>
+<div><h4>От тебя</h4><ul><li>Положить файлы в <code>kb/</code></li><li>Один раз проверить <code>facts.yaml</code></li><li>Заполнить <code>answers.yaml</code></li></ul></div>
+</div></article>
+
+<article class="sprint" id="s4" style="--k:#f7e463"><h3><b>S4</b> Подача</h3>
+<div class="grid3">
+<div><h4>Что делаем</h4><ul><li>Воркер на ноуте: автозапуск, long-poll по Tailscale, аренда задач с heartbeat</li><li>Авто-подача (L2) после всех проверок; карточка с двумя фазами как запасной путь</li><li>hh.kz, затем формы Greenhouse, Lever, Ashby</li><li>Отчёт после каждой подачи со скриншотом</li><li>Капча и 2FA → ты; сначала dry-run на каждой платформе</li><li>Mini App: фильтр по тегу needs_human, одобрение пачкой</li></ul></div>
+<div><h4>Готово, когда</h4><ul><li>10 dry-run на каждую платформу с правильным заполнением</li><li>10 реальных авто-подач на hh.kz с подтверждением и отчётом</li><li>Каждая не прошедшая проверку заявка пришла карточкой, а не ушла сама</li><li>Ни одного дубля</li></ul></div>
+<div><h4>От тебя</h4><ul><li>Поставить Tailscale на VM и ноут</li><li>Один раз войти в hh в профиле воркера</li><li>Заполнить <code>answers.yaml</code> до выключения dry run</li><li>Выключить dry run по платформе: <code>/dryrun hh off</code></li></ul></div>
+</div></article>
+
+<article class="sprint" id="s5" style="--k:#f09a4a"><h3><b>S5</b> Входящие и ответы</h3>
+<div class="grid3">
+<div><h4>Что делаем</h4><ul><li>Gmail по IMAP с app password, черновики через IMAP APPEND</li><li>Чат hh через воркер</li><li>Userbot на втором аккаунте, на ноуте</li><li>Разбор входящих, черновики ответов, этапы воронки</li></ul></div>
+<div><h4>Готово, когда</h4><ul><li>За неделю ≥ 90% входящих правильно привязаны к заявкам</li><li>Каждое исходящее прошло через Approve</li></ul></div>
+<div><h4>От тебя</h4><ul><li>App password Gmail (нужна 2FA)</li><li>Вход во второй Telegram-аккаунт</li></ul></div>
+</div></article>
+
+<article class="sprint" id="s6" style="--k:#ff7a63"><h3><b>S6</b> Надёжность и автономия</h3>
+<div class="grid3">
+<div><h4>Что делаем</h4><ul><li>Проверка восстановления из бэкапа</li><li>Метрики в дайджесте: выход по источникам, успех подач</li><li>Проверка права на L2 по каждому действию</li><li>По желанию: RAG, Postgres</li></ul></div>
+<div><h4>Готово, когда</h4><ul><li>Восстановление из бэкапа работает</li><li>Метрики показывают подачи → ответы → интервью по источникам</li></ul></div>
+<div><h4>От тебя</h4><ul><li>Решить, где включать L2</li></ul></div>
+</div></article>
+</div>
+</section>
+
+<section class="band alt" id="decisions">
+<div class="wrap">
+<h2>Что изменилось относительно спеки: каждое станет ADR</h2>
+<ol class="dec">
+<li><b>Новый продукт, публичный репо.</b> В git только код и примеры конфига. <code>kb/</code>, <code>protected.yaml</code>, ответы, данные и секреты лежат в приватной папке вне репо. Leak guard не пустит их в коммит.</li>
+<li><b>Один постоянный процесс плюс таймеры</b> вместо трёх демонов: на 1 ГБ память важнее.</li>
+<li><b>Браузер и userbot на ноуте</b>, задачи берутся через long-poll по Tailscale. Где запускать, по-прежнему задаётся в конфиге.</li>
+<li><b>Авто-подача по умолчанию</b>, если все проверки пройдены; иначе карточка и подача в две фазы с манифестом. Неизвестный исход — <code>submit_unknown</code>, решаешь ты. Зарплату спрашиваем у тебя, визу выводим из страны вакансии, остальные чувствительные вопросы — только твой готовый ответ из <code>answers.yaml</code>.</li>
+<li><b>Тейлоринг — это выбор, а не генерация:</b> пул вариантов, план из fact_id, замена PII по флагу.</li>
+<li><b>LLM-роутер</b> с цепочками, квотами, circuit breaker и dead-letter.</li>
+<li><b>Идемпотентность</b> по вакансии; cooldown необязателен; похожие роли — предупреждение.</li>
+<li><b>LinkedIn только для поиска</b>, подача через сайт компании; вакансии только с Easy Apply приходят уведомлением.</li>
+<li><b>Gmail по IMAP</b> вместо OAuth: токен не протухает через 7 дней.</li>
+<li><b>Тейлоринг запускается сам</b> для вакансий выше порога; ты видишь результат в отчёте или в карточке.</li>
+<li><b>Капча и проверки решаешь ты</b> в окне воркера. Решателей, ротации прокси и подмены отпечатка нет.</li>
+<li><b>Userbot на втором аккаунте</b>, без Premium. Если аккаунт забанят, заводишь новый.</li>
+<li><b>Теги состояний</b> ok / needs_human / not_ok: один фильтр «что ждёт меня» для <code>/status</code> и Mini App.</li>
+<li><b>Ночная очистка:</b> задачи, запуски и сырые LLM-логи удаляются; закончившиеся вакансии и заявки сжимаются до итога (компания, должность, ссылка, исход), ключи идемпотентности хранятся всегда.</li>
+</ol>
+</div>
+</section>
+
+<section class="band" id="check">
+<div class="wrap">
+<h2>Что проверю по ходу, а не на веру</h2>
+<div class="grid2">
+<ul>
+<li>Условия GCP Free Tier на момент деплоя, особенно цена внешнего IPv4. Запишу в <code>docs/infra.md</code>.</li>
+<li>Текущие бесплатные лимиты каждого LLM-провайдера и то, учится ли он на данных.</li>
+<li>Дневной лимит откликов на hh.kz.</li>
+</ul>
+<ul>
+<li>robots.txt у relocate.me, Habr Career и getmatch до того, как их включать.</li>
+<li>Риск по правилам hh и LinkedIn на твоём аккаунте. Объём держим человеческим, LinkedIn только читаем.</li>
+<li>Исходящий трафик VM: карточки с PDF и скриншотами против лимита 1 ГБ в месяц.</li>
+</ul>
+</div>
+<p class="mute" style="margin-top:18px">Версия 2, 26.11.2026: авто-подача, теги состояний, ночная очистка, правки по ревью PR #1. Код S0 — в PR #1.</p>
+</div>
+</section>
+
+</body>
+</html>
