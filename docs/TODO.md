@@ -23,6 +23,10 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
   so a build backend from the cloned repo runs as root. Fine while the repo is ours; harden later
   by deploying a pinned commit or signed tag instead of a branch head, and note it in
   `docs/infra.md`.
+- **Rollback copy during provisioning.** `provision.sh` deletes `/opt/jobpipe.old` right after the
+  swap, before `uv sync` of the new tree has passed, so a failed sync leaves nothing to roll back
+  to. Keep the old tree until the sync (and ideally a `/healthz` check) succeeds, and restore it
+  plus restart the units if they fail.
 
 ## Tooling
 
