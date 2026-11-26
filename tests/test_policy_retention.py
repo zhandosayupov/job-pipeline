@@ -7,7 +7,7 @@ from jobpipe.config.settings import PolicyCfg, RetentionCfg, RunnerCfg, Settings
 from jobpipe.domain import states
 from jobpipe.services import control
 from jobpipe.services.events import create_entity, transition
-from jobpipe.services.policy import ApplyFacts, Route, decide_apply, decide_message
+from jobpipe.services.policy import ApplyFacts, Route, decide_apply, decide_message, needs_sponsorship
 from jobpipe.services.queue import Queue
 from jobpipe.services.retention import run_retention
 
@@ -44,14 +44,42 @@ def test_block_beats_everything_and_ask_collects_all_reasons():
     assert d.route is Route.ASK and len(d.reasons) == 2
 
 
-def test_sensitive_questions_need_a_preapproved_answer():
-    asked = frozenset({"compensation", "visa", "github_url"})
-    d = decide_apply(PolicyCfg(), replace(CLEAN, topics_asked=asked, topics_preapproved=frozenset({"compensation"})))
-    assert d.route is Route.ASK and "visa" in d.reasons[0] and "compensation" not in d.reasons[0]
-    ok = replace(CLEAN, topics_asked=asked, topics_preapproved=frozenset({"compensation", "visa"}))
+def test_salary_question_asks_the_owner_by_default():
+    d = decide_apply(PolicyCfg(), replace(CLEAN, topics_asked=frozenset({"compensation"}),
+                                          topics_preapproved=frozenset({"compensation"}), posting_salary_known=True))
+    assert d.route is Route.ASK and "compensation: always asks you" in d.reasons[0]
+
+
+def test_salary_from_posting_range_when_switched_on():
+    p = PolicyCfg(sensitive_answers={"compensation": "posting_range", "default": "preapproved"})
+    asked = replace(CLEAN, topics_asked=frozenset({"compensation"}))
+    assert decide_apply(p, replace(asked, posting_salary_known=True)).route is Route.SUBMIT
+    d = decide_apply(p, asked)
+    assert d.route is Route.ASK and "no salary range" in d.reasons[0]
+
+
+@pytest.mark.parametrize("country,route", [("NL", Route.SUBMIT), ("KZ", Route.SUBMIT), ("am", Route.SUBMIT),
+                                           (None, Route.ASK)])
+def test_visa_question_is_derived_from_country(country, route):
+    f = replace(CLEAN, topics_asked=frozenset({"visa", "github_url"}), job_country=country)
+    assert decide_apply(PolicyCfg(), f).route is route
+
+
+def test_needs_sponsorship():
+    p = PolicyCfg()
+    assert needs_sponsorship(p, "DE") is True
+    assert needs_sponsorship(p, "GB") is True
+    assert needs_sponsorship(p, "KZ") is False
+    assert needs_sponsorship(p, "kg") is False
+    assert needs_sponsorship(p, None) is None
+
+
+def test_other_sensitive_topics_need_preapproved_answer():
+    f = replace(CLEAN, topics_asked=frozenset({"notice_period"}))
+    d = decide_apply(PolicyCfg(), f)
+    assert d.route is Route.ASK and "no pre-approved answer" in d.reasons[0]
+    ok = replace(f, topics_preapproved=frozenset({"notice_period"}))
     assert decide_apply(PolicyCfg(), ok).route is Route.SUBMIT
-    strict = PolicyCfg(auto_apply_preapproved_sensitive=False)
-    assert decide_apply(strict, ok).route is Route.ASK
 
 
 def test_apply_level_l1_asks():

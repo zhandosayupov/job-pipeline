@@ -103,6 +103,7 @@ class Settings(_Model):
 # --- policy.yaml ---------------------------------------------------------------------
 
 Level = Literal["L0", "L1", "L2"]
+AnswerMode = Literal["ask", "preapproved", "posting_range", "work_authorization"]
 
 
 class PolicyCfg(_Model):
@@ -121,9 +122,21 @@ class PolicyCfg(_Model):
         "compensation", "start_date", "notice_period", "visa", "citizenship", "reason_for_leaving",
         "references", "interview_scheduling", "offer",
     ])
-    # Applications: a sensitive form question may be auto-answered only with a verbatim answer the
-    # owner approved in kb/answers.yaml. false = any sensitive question turns the application into a card.
-    auto_apply_preapproved_sensitive: bool = True
+    # How an application form answers each sensitive topic. Modes:
+    #   ask                 always an approval card
+    #   preapproved         verbatim entry from kb/answers.yaml, else a card
+    #   posting_range       derive from the salary range the employer published, else a card
+    #   work_authorization  derived from work_authorized_countries and the job's country
+    #                       (sponsorship asked everywhere else), unknown country = card
+    sensitive_answers: dict[str, AnswerMode] = Field(default_factory=lambda: {
+        "compensation": "ask",
+        "visa": "work_authorization",
+        "citizenship": "work_authorization",
+        "default": "preapproved",
+    })
+    # Where the owner may work without sponsorship: Kazakhstan, and the EAEU states, whose
+    # citizens need no work permit in each other's countries.
+    work_authorized_countries: list[str] = Field(default_factory=lambda: ["KZ", "AM", "KG", "BY", "RU"])
     # Messages (not applications) may be raised to L2 only after this many clean approvals.
     l2_min_clean_approvals: int = 20
 

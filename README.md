@@ -7,7 +7,7 @@ without your Approve.
 
 Built to run on a free GCP e2-micro (1 GB RAM) plus a laptop for the browser.
 Architecture: [docs/architecture.md](docs/architecture.md) · decisions: [docs/adr/](docs/adr/) ·
-plan: [docs/plan.html](docs/plan.html).
+plan: [docs/plan.html](docs/plan.html) · parked for later: [docs/TODO.md](docs/TODO.md).
 
 ## Status
 

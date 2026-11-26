@@ -17,8 +17,9 @@ Self-hosted job search pipeline for one owner. Read `docs/architecture.md` and t
   card. Messages default to L1. Protected companies are never automatic. Sensitive topics
   (compensation, notice, visa, start date, references, interviews, offers) are never answered
   automatically with generated text: in a message they always need Approve; in an application
-  form they may be answered only with the owner's verbatim pre-approved entry from
-  `kb/answers.yaml` (`policy.yaml: auto_apply_preapproved_sensitive`, default true).
+  form each topic follows `policy.yaml: sensitive_answers` (salary asks the owner by default;
+  visa/citizenship are derived from `work_authorized_countries` and the job's country; others
+  use the owner's verbatim entry from `kb/answers.yaml`). Unknown inputs mean a card, never a guess.
 - **Side effects are at most once.** Every external action reserves a key in `side_effects` before
   acting and checks the pause flag (`ctx.guard()`). No blind retries of submits or sends.
 - **No bypassing defences.** Captcha, 2FA, 403/429 or robots refusals stop the platform and notify

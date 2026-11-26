@@ -29,10 +29,21 @@ sensitive_topics:
   - interview_scheduling
   - offer
 
-# Applications: a form question on a sensitive topic (salary, visa, notice...) is answered
-# automatically only with the exact answer you approved in kb/answers.yaml.
-# false = every application with a sensitive question comes to you as a card.
-auto_apply_preapproved_sensitive: true
+# How an application form answers each sensitive topic:
+#   ask                 always a card to you
+#   preapproved         your exact answer from kb/answers.yaml, else a card
+#   posting_range       from the salary range the employer published, else a card
+#   work_authorization  from the job's country: no sponsorship needed in work_authorized_countries,
+#                       sponsorship requested everywhere else; unknown country = card
+sensitive_answers:
+  compensation: ask            # switch to posting_range to follow the posting's own range
+  visa: work_authorization
+  citizenship: work_authorization
+  default: preapproved         # notice period, start date, references, reason for leaving, ...
+
+# Countries where you can work without sponsorship: Kazakhstan, plus the EAEU states
+# (their citizens need no work permit in each other's countries).
+work_authorized_countries: [KZ, AM, KG, BY, RU]
 
 # reply / email_draft may be raised to L2 only after this many approvals without edits.
 l2_min_clean_approvals: 20

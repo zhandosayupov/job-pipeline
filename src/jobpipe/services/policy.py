@@ -34,6 +34,32 @@ class ApplyFacts:
     # a verbatim, owner-approved entry from kb/answers.yaml.
     topics_asked: frozenset[str] = frozenset()
     topics_preapproved: frozenset[str] = frozenset()
+    job_country: str | None = None         # ISO 3166-1 alpha-2 of the job's work location; None = unknown
+    posting_salary_known: bool = False     # the employer published a salary range in the posting
+
+
+def needs_sponsorship(policy: PolicyCfg, country: str | None) -> bool | None:
+    """Whether to ask for visa sponsorship for a job in `country`. None when the country is unknown
+    (then the question goes to the owner: never guess)."""
+    if not country:
+        return None
+    return country.upper() not in {c.upper() for c in policy.work_authorized_countries}
+
+
+def _sensitive_blockers(policy: PolicyCfg, f: ApplyFacts) -> list[str]:
+    """Sensitive form topics this application cannot answer on its own, with the reason."""
+    out = []
+    for topic in sorted(f.topics_asked & set(policy.sensitive_topics)):
+        mode = policy.sensitive_answers.get(topic, policy.sensitive_answers.get("default", "preapproved"))
+        if mode == "ask":
+            out.append(f"{topic}: always asks you")
+        elif mode == "work_authorization" and needs_sponsorship(policy, f.job_country) is None:
+            out.append(f"{topic}: job country unknown")
+        elif mode == "posting_range" and not f.posting_salary_known:
+            out.append(f"{topic}: no salary range in the posting")
+        elif mode == "preapproved" and topic not in f.topics_preapproved:
+            out.append(f"{topic}: no pre-approved answer in kb/answers.yaml")
+    return out
 
 
 @dataclass(frozen=True)
@@ -60,11 +86,9 @@ def decide_apply(policy: PolicyCfg, f: ApplyFacts) -> Decision:
         reasons.append("protected company: never automatic")
     if f.unanswered_questions:
         reasons.append(f"{f.unanswered_questions} question(s) without an answer in the KB")
-    sensitive = f.topics_asked & set(policy.sensitive_topics)
-    preapproved = f.topics_preapproved if policy.auto_apply_preapproved_sensitive else frozenset()
-    blocked = sensitive - preapproved
-    if blocked:
-        reasons.append(f"sensitive question(s) without a pre-approved answer: {', '.join(sorted(blocked))}")
+    blockers = _sensitive_blockers(policy, f)
+    if blockers:
+        reasons.append("sensitive question(s): " + "; ".join(blockers))
     if f.similar_role_warning:
         reasons.append("already applied to a similar role at this company")
     level = policy.autonomy.get("apply", "L1")

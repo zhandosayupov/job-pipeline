@@ -14,11 +14,19 @@ The original spec made every application L1: fill, show the owner a card, wait f
   2. **defer**: kill switch on, or the platform's daily cap reached;
   3. **dry run**: dry run is still on for the platform (the default until the owner flips it);
   4. **ask** (L1 card): protected company, any form question without an answer in
-     `kb/answers.yaml`, a sensitive question (compensation, visa, notice, ...) whose answer is not
-     the owner's verbatim pre-approved entry, a similar application at the same company, or apply
-     autonomy below L2. With `auto_apply_preapproved_sensitive: false`, every sensitive question
-     means a card;
+     `kb/answers.yaml`, a sensitive question its rule cannot answer (below), a similar application
+     at the same company, or apply autonomy below L2;
   5. otherwise **submit** (L2).
+* Sensitive form questions follow `policy.yaml: sensitive_answers`, per topic:
+  * **compensation: `ask`** (owner's choice): every salary question is a card. `posting_range`
+    may be switched on to answer from the range the employer itself published; a posting without
+    a range still means a card. Salary is never guessed from company reputation.
+  * **visa, citizenship: `work_authorization`**: derived, not generated. The owner is a citizen of
+    Kazakhstan; in `work_authorized_countries` (Kazakhstan and the EAEU states, whose citizens need
+    no work permit there) no sponsorship is needed; everywhere else sponsorship is requested. A job
+    with an unknown country is a card.
+  * **everything else (`default: preapproved`)**: the owner's verbatim entry from
+    `kb/answers.yaml`, else a card.
 * Auto path: `ready → filling → submitting → applied`. The fill manifest and screenshot are still
   stored, and the owner gets a report after each submission (and a daily digest), with a Withdraw
   button where the platform allows it.
