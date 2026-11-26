@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+
+# Private data never lives in this repo. JOBPIPE_HOME (default ~/.jobpipe) holds it.
+# These patterns are a second line of defence; tools/leak_guard.py is the first.
+secrets.env
+*.env
+!ops/secrets.env.example
+*.db
+*.db-wal
+*.db-shm
+/config/
+/kb/
+/data/
+/profiles/
+/home/
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
