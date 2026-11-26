@@ -19,15 +19,24 @@ pii_values: {}
 #  PHONE: ["+7 700 000 00 00"]
 
 providers:
+  # A provider lists its models in the order to try them. Quotas, 429 cooldowns and the breaker
+  # are per model (free tiers limit each model separately). A task chain entry is either
+  # "provider" (all its models) or "provider/model-id" (just one).
   gemini:
     base_url: https://generativelanguage.googleapis.com/v1beta/openai
-    model: gemini-flash-latest       # verify in Google AI Studio
     key_env: GEMINI_API_KEY
-    rpm: 5
-    rpd: 100
-    tpm: 100000
+    timeout_s: 30
     day_reset_tz: America/Los_Angeles
     trains_on_data: true             # free tier: assume prompts may be used for training
+    # Ids seen on the free tier on 2026-11-26; list yours with GET .../openai/models.
+    # The bigger model often answers 503 "high demand", so the lite one goes first.
+    models:
+      - id: gemini-flash-lite-latest
+        rpm: 10
+        rpd: 500
+      - id: gemini-flash-latest
+        rpm: 5
+        rpd: 100
   groq:
     enabled: false
     base_url: https://api.groq.com/openai/v1

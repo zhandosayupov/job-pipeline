@@ -144,11 +144,27 @@ class PolicyCfg(_Model):
 # --- llm.yaml ------------------------------------------------------------------------
 
 
+class LLMModel(_Model):
+    """One model of a provider. Limits left empty fall back to the provider's."""
+
+    id: str
+    enabled: bool = True
+    rpm: int | None = None
+    rpd: int | None = None
+    tpm: int | None = None
+    tpd: int | None = None
+    timeout_s: float | None = None
+
+
 class LLMProvider(_Model):
+    """A provider and its models, tried in order. Either `models` (preferred) or a single `model`.
+    Quotas, cooldowns and the breaker are kept per model: free tiers limit each model separately."""
+
     kind: Literal["openai_compat"] = "openai_compat"
     base_url: str
-    model: str
     key_env: str
+    model: str | None = None
+    models: list[LLMModel] = Field(default_factory=list)
     enabled: bool = True
     rpm: int | None = None
     rpd: int | None = None
@@ -159,8 +175,29 @@ class LLMProvider(_Model):
     timeout_s: float = 60
     json_mode: bool = True
 
+    @model_validator(mode="after")
+    def _one_way_to_name_models(self) -> LLMProvider:
+        if bool(self.model) == bool(self.models):
+            raise ValueError("set exactly one of `model` or `models`")
+        return self
+
+    def resolved_models(self) -> list[LLMModel]:
+        """Models in order, with provider-level limits filled in where a model sets none."""
+        base = self.models or [LLMModel(id=self.model or "")]
+        out = []
+        for m in base:
+            out.append(m.model_copy(update={
+                "rpm": m.rpm if m.rpm is not None else self.rpm,
+                "rpd": m.rpd if m.rpd is not None else self.rpd,
+                "tpm": m.tpm if m.tpm is not None else self.tpm,
+                "tpd": m.tpd if m.tpd is not None else self.tpd,
+                "timeout_s": m.timeout_s if m.timeout_s is not None else self.timeout_s,
+            }))
+        return out
+
 
 class LLMTask(_Model):
+    # Entries are "provider" (all its models, in order) or "provider/model-id" (just that one).
     chain: list[str]
     prompt_version: str = "v1"
     temperature: float = 0.2

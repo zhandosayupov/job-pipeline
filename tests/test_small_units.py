@@ -54,6 +54,8 @@ def test_example_config_is_valid(tmp_path):
     cfg = load_config(home, env={})
     assert "gemini" in cfg.llm.providers
     assert cfg.llm.tasks["ping"].chain[0] == "gemini"
+    assert [m.id for m in cfg.llm.providers["gemini"].resolved_models()] == [
+        "gemini-flash-lite-latest", "gemini-flash-latest"]
 
 
 # --- logging --------------------------------------------------------------------------

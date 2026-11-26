@@ -55,7 +55,7 @@ With a bot token and `telegram.owner_id`: `uv run jobpipe bot`, then `/status` i
 
 ## Deploy
 
-See [docs/infra.md](docs/infra.md). In short, on a fresh Debian 12 VM as root:
+See [docs/infra.md](docs/infra.md). In short, on a fresh Debian 13 VM as root:
 
 ```bash
 git clone https://github.com/zhandosayupov/job-pipeline.git /tmp/jp && bash /tmp/jp/ops/provision.sh
