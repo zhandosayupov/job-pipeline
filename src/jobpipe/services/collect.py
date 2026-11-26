@@ -3,6 +3,7 @@ closures, record per-source stats and alert on unhealthy sources.
 
 Each source is isolated: one failing source never stops the others.
 """
+
 from __future__ import annotations
 
 import json
@@ -41,8 +42,15 @@ class SourceResult:
 
 
 class Collector:
-    def __init__(self, conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, http: Http, notifier: Notifier,
-                 registry: dict[str, type] | None = None):
+    def __init__(
+        self,
+        conn: sqlite3.Connection,
+        clock: Clock,
+        cfg: AppConfig,
+        http: Http,
+        notifier: Notifier,
+        registry: dict[str, type] | None = None,
+    ):
         self.conn = conn
         self.clock = clock
         self.cfg = cfg
@@ -71,8 +79,7 @@ class Collector:
             status = "failed"
             raise
         finally:
-            control.finish_run(self.conn, self.clock, run_id, status,
-                               {r.source: r.status for r in results})
+            control.finish_run(self.conn, self.clock, run_id, status, {r.source: r.status for r in results})
         return results
 
     # --- one source ----------------------------------------------------------------------
@@ -85,14 +92,15 @@ class Collector:
             self._record_run(res, started)
             return res
         scfg = self.cfg.sources.sources[name]
-        companies = [c for c in self.cfg.companies.companies if c.ats == name and c.enabled] if name in ATS_SOURCES else []
+        companies = (
+            [c for c in self.cfg.companies.companies if c.ats == name and c.enabled] if name in ATS_SOURCES else []
+        )
         ctx = SourceContext(params=dict(scfg.params), companies=companies, cursors=self._cursors(name))
         try:
             outcome: FetchOutcome = cls().fetch(self.http, ctx)
         except Exception as e:  # a source bug must not stop the run
             outcome = FetchOutcome(errors=[f"{type(e).__name__}: {str(e)[:200]}"])
-        res = SourceResult(name, outcome.status, fetched=len(outcome.postings),
-                           errors=outcome.blocked + outcome.errors)
+        res = SourceResult(name, outcome.status, fetched=len(outcome.postings), errors=outcome.blocked + outcome.errors)
         for p in outcome.postings:
             self._ingest(p, res)
         for unit, ids in outcome.complete_ids.items():
@@ -117,14 +125,31 @@ class Collector:
         d = decide(p, self.cfg.filters, self.cfg.policy.work_authorized_countries)
         fp = T.fingerprint(p.company, p.title, p.location)
         data = {
-            "description": T.clip(p.description, DESCRIPTION_CHARS), "remote_text": p.remote, "extra": p.extra,
+            "description": T.clip(p.description, DESCRIPTION_CHARS),
+            "remote_text": p.remote,
+            "extra": p.extra,
             **d.signals,
         }
-        create_entity(self.conn, self.clock, "job", p.id, actor="collect", columns={
-            "source": p.source, "kind": p.kind, "company": p.company, "title": p.title, "url": p.url,
-            "location": p.location, "country": p.country, "posted_at": p.posted_at, "fingerprint": fp,
-            "last_seen": now,
-        }, data=data)
+        create_entity(
+            self.conn,
+            self.clock,
+            "job",
+            p.id,
+            actor="collect",
+            columns={
+                "source": p.source,
+                "kind": p.kind,
+                "company": p.company,
+                "title": p.title,
+                "url": p.url,
+                "location": p.location,
+                "country": p.country,
+                "posted_at": p.posted_at,
+                "fingerprint": fp,
+                "last_seen": now,
+            },
+            data=data,
+        )
         if not d.keep:
             self._drop(p.id, "discovered", d.rule or "prefilter", d.matched)
             res.dropped += 1
@@ -135,11 +160,23 @@ class Collector:
         else:
             res.kept += 1
 
-    def _drop(self, job_id: str, expected: str, rule: str, matched: str | None, duplicate_of: str | None = None) -> None:
-        transition(self.conn, self.clock, "job", job_id, "dropped", expected=expected, actor="collect",
-                   data={"rule": rule, "matched": matched, "duplicate_of": duplicate_of})
+    def _drop(
+        self, job_id: str, expected: str, rule: str, matched: str | None, duplicate_of: str | None = None
+    ) -> None:
+        transition(
+            self.conn,
+            self.clock,
+            "job",
+            job_id,
+            "dropped",
+            expected=expected,
+            actor="collect",
+            data={"rule": rule, "matched": matched, "duplicate_of": duplicate_of},
+        )
         with tx(self.conn):
-            self.conn.execute("UPDATE jobs SET drop_rule = ?, duplicate_of = ? WHERE id = ?", (rule, duplicate_of, job_id))
+            self.conn.execute(
+                "UPDATE jobs SET drop_rule = ?, duplicate_of = ? WHERE id = ?", (rule, duplicate_of, job_id)
+            )
 
     def _dedupe(self, p: Posting, fp: str) -> bool:
         """Keep one copy per fingerprint; an ATS record beats an aggregator, which beats a community
@@ -149,7 +186,9 @@ class Collector:
         marks = ", ".join("?" for _ in LIVE_STATES)
         row = self.conn.execute(
             f"SELECT id, kind, state, digested_at FROM jobs WHERE fingerprint = ? AND id != ? AND state IN ({marks}) "
-            "ORDER BY created_at LIMIT 1", (fp, p.id, *LIVE_STATES)).fetchone()
+            "ORDER BY created_at LIMIT 1",
+            (fp, p.id, *LIVE_STATES),
+        ).fetchone()
         if row is None:
             return False
         new_better = KIND_RANK[p.kind] < KIND_RANK.get(row["kind"], 9)
@@ -182,15 +221,28 @@ class Collector:
             for k, v in cursors.items():
                 self.conn.execute(
                     "INSERT INTO source_cursors(source, key, value) VALUES (?, ?, ?) "
-                    "ON CONFLICT(source, key) DO UPDATE SET value = excluded.value", (source, k, str(v)))
+                    "ON CONFLICT(source, key) DO UPDATE SET value = excluded.value",
+                    (source, k, str(v)),
+                )
 
     def _record_run(self, r: SourceResult, started: str) -> None:
         with tx(self.conn):
             self.conn.execute(
                 "INSERT INTO source_runs(source, started_at, finished_at, status, fetched, new, kept, dropped, closed, "
                 "error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (r.source, started, iso(self.clock.now()), r.status, r.fetched, r.new, r.kept, r.dropped, r.closed,
-                 json.dumps(r.errors[:5], ensure_ascii=False) if r.errors else None))
+                (
+                    r.source,
+                    started,
+                    iso(self.clock.now()),
+                    r.status,
+                    r.fetched,
+                    r.new,
+                    r.kept,
+                    r.dropped,
+                    r.closed,
+                    json.dumps(r.errors[:5], ensure_ascii=False) if r.errors else None,
+                ),
+            )
 
     def _health(self, source: str) -> None:
         """Alert once when a source reaches N consecutive non-ok runs, and once when it recovers."""

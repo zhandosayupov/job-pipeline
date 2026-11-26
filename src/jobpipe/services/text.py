@@ -3,6 +3,7 @@
 Signals never guess: no match means None (CLAUDE.md "unknown stays null"). Visa detection is
 negation-aware: "visa sponsorship is not available" is a refusal, not an offer.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -81,7 +82,7 @@ def _norm(s: str | None) -> str:
 
 
 def norm_company(name: str | None) -> str:
-    s = _norm(name)
+    s = _norm((name or "").replace(".", ""))  # "B.V." -> "bv" so the suffix rule sees it
     prev = None
     while prev != s:
         prev, s = s, _COMPANY_SUFFIX.sub("", s).strip()
@@ -123,34 +124,57 @@ _SALARY = re.compile(
 
 
 def salary_text(text: str) -> str | None:
-    m = _SALARY.search(text or "")
-    return " ".join(m.group(0).split()) if m else None
+    """A salary-looking amount: a range, or a single figure in thousands ("€90k", "120 000 ₸").
+    A lone small number with a currency sign ("$17.5", often funding) is not a salary."""
+    for m in _SALARY.finditer(text or ""):
+        found = " ".join(m.group(0).split())
+        is_range = re.search(r"\d\s?(?:-|–|to|до)\s?\D{0,3}\d", found) is not None
+        thousands = re.search(r"\d\s?[kK](?![a-zA-Z])|\d{2,3}[\s,.]\d{3}|\d{5,}", found) is not None
+        if is_range or thousands:
+            return found
+    return None
 
 
 _NEG = r"(?:no|not|unable|cannot|can't|won't|don't|do not|does not|without|unfortunately|не|нет|без)"
 _VISA_WORDS = r"(?:visa|sponsorship|sponsor|work permit|визов\w*|виз[ауы]?|спонсор\w*)"
 _VISA_NEG = [
     re.compile(rf"\b{_NEG}\b[^.\n]{{0,40}}{_VISA_WORDS}", re.I),
-    re.compile(rf"{_VISA_WORDS}[^.\n]{{0,40}}\b(?:is |are )?(?:not available|not provided|not possible|not offered|"
-               r"не предоставля\w*|не оформля\w*)", re.I),
-    re.compile(r"\b(?:must|need to|required to) (?:already )?(?:have|hold|possess) (?:the )?(?:right|authori[sz]ation) "
-               r"to work", re.I),
+    re.compile(
+        rf"{_VISA_WORDS}[^.\n]{{0,40}}\b(?:is |are )?(?:not available|not provided|not possible|not offered|"
+        r"не предоставля\w*|не оформля\w*)",
+        re.I,
+    ),
+    re.compile(
+        r"\b(?:must|need to|required to) (?:already )?(?:have|hold|possess) (?:the )?(?:right|authori[sz]ation) "
+        r"to work",
+        re.I,
+    ),
     re.compile(r"\bright to work in [a-z ]+ (?:is )?required\b", re.I),
 ]
 _VISA_POS = re.compile(
-    r"\b(?:visa sponsorship(?! is not| not)|we (?:will |can |do )?sponsor|sponsor(?:ship)? (?:is )?(?:available|provided|offered)|"
+    r"\b(?:visa sponsorship(?! is not| not)|we (?:will |can |do )?sponsor|"
+    r"sponsor(?:ship)? (?:is )?(?:available|provided|offered)|"
     r"(?:blue card|skilled worker visa|highly skilled migrant|kennismigrant|h-?1b) (?:sponsorship|support)|"
-    r"помо\w+ с визой|оформ\w+ виз\w*|визовая поддержка)", re.I)
-_RELOC = re.compile(r"\b(?:relocation (?:package|support|assistance|bonus)|relocate you|help (?:you )?relocate|"
-                    r"релокаци\w*|помощь с переездом)", re.I)
+    r"помо\w+ с визой|оформ\w+ виз\w*|визовая поддержка)",
+    re.I,
+)
+_RELOC = re.compile(
+    r"\b(?:relocation (?:package|support|assistance|bonus)|relocate you|help (?:you )?relocate|"
+    r"релокаци\w*|помощь с переездом)",
+    re.I,
+)
 
 
 def visa_signal(text: str) -> tuple[str | None, str | None]:
     """('explicit' | 'no' | 'relocation_only' | None, evidence of at most ~15 words)."""
     t = text or ""
     for rx in _VISA_NEG:
-        m = rx.search(t)
-        if m:
+        for m in rx.finditer(t):
+            # Export-control boilerplate ("...under U.S. export laws without sponsorship for an export
+            # license") talks about licences, not visas: found as a false positive on live Cloudflare data.
+            window = t[max(0, m.start() - 160): m.end() + 80].lower()
+            if "export" in window or "licen" in window:
+                continue
             return "no", _evidence(t, m)
     m = _VISA_POS.search(t)
     if m:
@@ -161,8 +185,9 @@ def visa_signal(text: str) -> tuple[str | None, str | None]:
     return None, None
 
 
-_REMOTE = re.compile(r"\b(?:remote|fully remote|work from anywhere|distributed team|удал[её]нн\w*|удаленка|remote-first)\b",
-                     re.I)
+_REMOTE = re.compile(
+    r"\b(?:remote|fully remote|work from anywhere|distributed team|удал[её]нн\w*|удаленка|remote-first)\b", re.I
+)
 _ONSITE = re.compile(r"\b(?:on-?site only|office only|no remote|в офисе|офис)\b", re.I)
 
 
@@ -177,7 +202,7 @@ def remote_signal(text: str) -> str | None:
 
 def _evidence(text: str, m: re.Match, words: int = 15) -> str:
     start = max(0, text.rfind("\n", 0, m.start()) + 1, m.start() - 80)
-    snippet = " ".join(text[start: m.end() + 80].split())
+    snippet = " ".join(text[start : m.end() + 80].split())
     return " ".join(snippet.split()[:words])
 
 

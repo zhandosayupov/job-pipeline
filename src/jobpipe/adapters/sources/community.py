@@ -1,4 +1,5 @@
 """Community sources: Hacker News "Who is hiring" and public Telegram channels (t.me/s, no login)."""
+
 from __future__ import annotations
 
 import re
@@ -29,12 +30,14 @@ class HackerNews:
             if not hits:
                 raise ValueError("no 'Who is hiring' story found")
             story.update(hits[0])
+
         out.run_unit("story", find_story)
         if not story:
             return out
         sid = story["objectID"]
         seen: set[str] = set()
         for q in ctx.params.get("queries", ["c++", "visa", "relocation", "remote"]):
+
             def unit(q=q):
                 data = http.get_json(self.search, {"tags": f"comment,story_{sid}", "query": q, "hitsPerPage": 100})
                 for c in data.get("hits", []):
@@ -42,6 +45,7 @@ class HackerNews:
                         continue  # top-level comments only: replies are not job posts
                     seen.add(c["objectID"])
                     out.postings.append(parse_hn_comment(c))
+
             out.run_unit(f"q={q}", unit)
         return out
 
@@ -52,13 +56,22 @@ def parse_hn_comment(c: dict) -> Posting:
     parts = [p.strip() for p in re.split(r"\s+\|\s+", first) if p.strip()]
     company = parts[0] if parts else ""
     title = parts[1] if len(parts) > 1 else clip(first, 120) or ""
-    location = next((p for p in parts[2:] if not re.search(r"remote|onsite|on-site|full[- ]time|\$|€|visa", p, re.I)),
-                    None)
+    location = next(
+        (p for p in parts[2:] if not re.search(r"remote|onsite|on-site|full[- ]time|\$|€|visa", p, re.I)), None
+    )
     remote = next((p for p in parts if re.search(r"remote", p, re.I)), None)
     return Posting(
-        source="hn", kind="community", source_job_id=str(c["objectID"]), company=clip(company, 80) or "",
-        title=clip(title, 160) or "", url=f"https://news.ycombinator.com/item?id={c['objectID']}", description=text,
-        location=location, country=country_from_location(location), remote=remote, posted_at=iso_utc(c.get("created_at")),
+        source="hn",
+        kind="community",
+        source_job_id=str(c["objectID"]),
+        company=clip(company, 80) or "",
+        title=clip(title, 160) or "",
+        url=f"https://news.ycombinator.com/item?id={c['objectID']}",
+        description=text,
+        location=location,
+        country=country_from_location(location),
+        remote=remote,
+        posted_at=iso_utc(c.get("created_at")),
     )
 
 
@@ -123,6 +136,7 @@ class TelegramChannels:
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
         out = FetchOutcome()
         for ch in ctx.params.get("channels", []):
+
             def unit(ch=ch):
                 last = int(ctx.cursors.get(f"last_id:{ch}", "0"))
                 newest = last
@@ -132,11 +146,20 @@ class TelegramChannels:
                         continue
                     newest = max(newest, pid)
                     first = post["text"].split("\n", 1)[0]
-                    out.postings.append(Posting(
-                        source=self.name, kind="community", source_job_id=f"{ch}:{pid}", company="",
-                        title=clip(first, 160) or "", url=f"https://t.me/{ch}/{pid}", description=post["text"],
-                        posted_at=iso_utc(post["datetime"]), extra={"channel": ch},
-                    ))
+                    out.postings.append(
+                        Posting(
+                            source=self.name,
+                            kind="community",
+                            source_job_id=f"{ch}:{pid}",
+                            company="",
+                            title=clip(first, 160) or "",
+                            url=f"https://t.me/{ch}/{pid}",
+                            description=post["text"],
+                            posted_at=iso_utc(post["datetime"]),
+                            extra={"channel": ch},
+                        )
+                    )
                 ctx.cursors[f"last_id:{ch}"] = str(newest)
+
             out.run_unit(ch, unit)
         return out

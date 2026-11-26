@@ -1,0 +1,35 @@
+# Company boards on hosted ATSes. Copied to $JOBPIPE_HOME/config/companies.yaml by `jobpipe init`.
+# Each entry is one request per collect run. Tokens checked against the live APIs on 2026-11-26.
+# priority: 1 = target firm, 2 = good fit, 3 = broad net. Protected companies (no automatic
+# applications) are listed separately in protected.yaml (S2); collecting them is fine.
+#
+# Find a token: the board URL boards.greenhouse.io/<token>, jobs.ashbyhq.com/<token>,
+# jobs.lever.co/<token>. Check it: curl -s https://boards-api.greenhouse.io/v1/boards/<token>/jobs | head -c 200
+
+companies:
+  # Greenhouse
+  - {name: IMC, ats: greenhouse, token: imc, priority: 1}
+  - {name: Optiver, ats: greenhouse, token: optiver, priority: 1}
+  - {name: Optiver (private), ats: greenhouse, token: optiverprivate, priority: 1}
+  - {name: Flow Traders, ats: greenhouse, token: flowtraders, priority: 1}
+  - {name: DRW, ats: greenhouse, token: drweng, priority: 1}
+  - {name: Jane Street, ats: greenhouse, token: janestreet, priority: 1}
+  - {name: Jump Trading, ats: greenhouse, token: jumptrading, priority: 1}
+  - {name: XTX Markets, ats: greenhouse, token: xtxmarketstechnologies, priority: 1}
+  - {name: Hudson River Trading, ats: greenhouse, token: wehrtyou, priority: 1}
+  - {name: Tower Research Capital, ats: greenhouse, token: towerresearchcapital, priority: 1}
+  - {name: Akuna Capital, ats: greenhouse, token: akunacapital, priority: 1}
+  - {name: GSA Capital, ats: greenhouse, token: gsacapital, priority: 1}
+  - {name: Virtu Financial, ats: greenhouse, token: virtu, priority: 1}
+  - {name: think-cell, ats: greenhouse, token: think-cell, priority: 2}
+  - {name: Cloudflare, ats: greenhouse, token: cloudflare, priority: 2}
+
+  # Ashby
+  - {name: ClickHouse, ats: ashby, token: clickhouse, priority: 2}
+  - {name: Perplexity, ats: ashby, token: perplexity, priority: 3}
+
+  # Lever: none of the targets checked so far use it. Example:
+  # - {name: Spotify, ats: lever, token: spotify, priority: 3}
+
+  # Not found on Greenhouse on 2026-11-26 (other ATS, or a different token):
+  # Citadel Securities, Squarepoint, QRT, SIG, Mistral (Ashby).

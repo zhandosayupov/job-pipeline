@@ -1,4 +1,5 @@
 """A normalized vacancy as every source returns it. Unknown values are None, never guessed."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -18,9 +19,9 @@ class Posting:
     url: str
     description: str = ""
     location: str | None = None
-    country: str | None = None          # ISO 3166-1 alpha-2 when the source says so
-    remote: str | None = None           # source's own remote label/text
-    posted_at: str | None = None        # ISO-8601 UTC
+    country: str | None = None  # ISO 3166-1 alpha-2 when the source says so
+    remote: str | None = None  # source's own remote label/text
+    posted_at: str | None = None  # ISO-8601 UTC
     salary_text: str | None = None
     extra: dict = field(default_factory=dict)
 

@@ -91,6 +91,17 @@ jp task add selftest.sleep --payload '{"seconds": 120}'
 # once /status shows it running, send /pause: the reply comes in <= 10 s; then /resume
 ```
 
+## Collection (S1)
+
+```bash
+jp run collect --dry-run                  # live fetch into a copy of the database, prints per-source stats
+jp run collect --dry-run --sources hn     # one source
+jp run digest --dry-run                   # print what the 09:00 digest would send
+jp jobs dropped                           # why jobs were filtered out
+```
+
+Timers: `jobpipe-collect.timer` (08, 11, 14, 17, 20, 23 Almaty) and `jobpipe-digest.timer` (09:00).
+
 ## Operations
 
 * Logs: `journalctl -u jobpipe-bot -u jobpipe-queue -f -o cat` (JSON lines, secrets masked).

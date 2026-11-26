@@ -10,6 +10,14 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
   to a market-based answer instead of asking the owner every time. Until then: always ask
   (ADR 0016), or `posting_range` for postings that publish a range.
 
+## Sources not in S1
+
+- **LinkedIn** (discovery only, ADR 0011): `python-jobspy` pulls in pandas, too heavy for the 1 GB VM.
+  Options: run it on the laptop worker (S4), or a small own client for the public guest search.
+- **relocate.me**: HTML listing pages (robots.txt allows them; `/api/` is disallowed).
+- **Habr Career, getmatch, Remowork**: JS-heavy, need the browser worker (S4).
+- **hh.kz**: saved-search email alerts parsed from Gmail (S5) and search pages in the worker (S4).
+
 ## Production
 
 - **Production checks that alert when something breaks.** Unit tests only cover the code; on the

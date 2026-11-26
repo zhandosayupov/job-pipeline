@@ -3,6 +3,7 @@
 A refusal (robots disallow, 401/403, 429, captcha page) raises Blocked and is never worked around:
 no proxies, no fingerprint changes, no captcha solving (ADR 0012).
 """
+
 from __future__ import annotations
 
 import time

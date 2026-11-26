@@ -29,3 +29,14 @@ def test_cli_llm_ping_without_keys_fails_cleanly(tmp_path, monkeypatch, capsys):
     main(["--home", home, "init"])
     assert main(["--home", home, "llm", "ping"]) == 1
     assert "no key GEMINI_API_KEY" in capsys.readouterr().err
+
+
+def test_cli_digest_dry_run_and_jobs(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("JOBPIPE_SECRETS", str(tmp_path / "none.env"))
+    home = str(tmp_path / "home")
+    main(["--home", home, "init"])
+    assert (tmp_path / "home" / "config" / "sources.yaml").exists()
+    assert main(["--home", home, "run", "digest", "--dry-run"]) == 0
+    assert "Новых вакансий нет" in capsys.readouterr().out
+    assert main(["--home", home, "jobs", "list"]) == 0
+    assert main(["--home", home, "jobs", "dropped"]) == 0

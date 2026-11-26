@@ -1,5 +1,6 @@
 """Company job boards on hosted ATSes, one unit per company from companies.yaml. These boards list
 every open job, so a job missing from a later fetch has closed."""
+
 from __future__ import annotations
 
 from ...domain.job import Posting
@@ -17,21 +18,28 @@ class Greenhouse:
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
         out = FetchOutcome()
         for c in ctx.companies:
+
             def unit(c=c):
                 data = http.get_json(self.base.format(token=c.token), {"content": "true"})
                 ids = set()
                 for j in data.get("jobs", []):
                     loc = (j.get("location") or {}).get("name")
                     p = Posting(
-                        source=self.name, kind="ats", source_job_id=f"{c.token}:{j['id']}", company=c.name,
-                        title=j.get("title") or "", url=j.get("absolute_url") or "",
+                        source=self.name,
+                        kind="ats",
+                        source_job_id=f"{c.token}:{j['id']}",
+                        company=c.name,
+                        title=j.get("title") or "",
+                        url=j.get("absolute_url") or "",
                         description=html_to_text(j.get("content"), unescape_first=True),
-                        location=loc, country=country_from_location(loc),
+                        location=loc,
+                        country=country_from_location(loc),
                         posted_at=iso_utc(j.get("first_published") or j.get("updated_at")),
                     )
                     ids.add(p.id)
                     out.postings.append(p)
                 out.complete_ids[f"{self.name}:{c.token}"] = ids
+
             out.run_unit(c.token, unit)
         return out
 
@@ -44,25 +52,34 @@ class Ashby:
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
         out = FetchOutcome()
         for c in ctx.companies:
+
             def unit(c=c):
                 data = http.get_json(self.base.format(token=c.token), {"includeCompensation": "true"})
                 ids = set()
                 for j in data.get("jobs", []):
                     if j.get("isListed") is False:
                         continue
-                    addr = ((j.get("address") or {}).get("postalAddress") or {})
+                    addr = (j.get("address") or {}).get("postalAddress") or {}
                     comp = (j.get("compensation") or {}).get("compensationTierSummary")
                     remote = j.get("workplaceType") or ("Remote" if j.get("isRemote") else None)
                     p = Posting(
-                        source=self.name, kind="ats", source_job_id=f"{c.token}:{j['id']}", company=c.name,
-                        title=j.get("title") or "", url=j.get("jobUrl") or "",
+                        source=self.name,
+                        kind="ats",
+                        source_job_id=f"{c.token}:{j['id']}",
+                        company=c.name,
+                        title=j.get("title") or "",
+                        url=j.get("jobUrl") or "",
                         description=j.get("descriptionPlain") or html_to_text(j.get("descriptionHtml")),
-                        location=j.get("location"), country=to_iso2(addr.get("addressCountry")),
-                        remote=remote, posted_at=iso_utc(j.get("publishedAt")), salary_text=comp,
+                        location=j.get("location"),
+                        country=to_iso2(addr.get("addressCountry")),
+                        remote=remote,
+                        posted_at=iso_utc(j.get("publishedAt")),
+                        salary_text=comp,
                     )
                     ids.add(p.id)
                     out.postings.append(p)
                 out.complete_ids[f"{self.name}:{c.token}"] = ids
+
             out.run_unit(c.token, unit)
         return out
 
@@ -75,24 +92,39 @@ class Lever:
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
         out = FetchOutcome()
         for c in ctx.companies:
+
             def unit(c=c):
                 data = http.get_json(self.base.format(token=c.token), {"mode": "json"})
                 ids = set()
                 for j in data:
                     cats = j.get("categories") or {}
-                    lists = "\n".join(f"{x.get('text', '')}\n{html_to_text(x.get('content'))}" for x in j.get("lists", []))
+                    lists = "\n".join(
+                        f"{x.get('text', '')}\n{html_to_text(x.get('content'))}" for x in j.get("lists", [])
+                    )
                     desc = "\n".join(filter(None, [j.get("descriptionPlain"), lists, j.get("additionalPlain")]))
                     sr = j.get("salaryRange") or {}
-                    salary = (f"{sr.get('min')}–{sr.get('max')} {sr.get('currency', '')}".strip()
-                              if sr.get("min") and sr.get("max") else None)
+                    salary = (
+                        f"{sr.get('min')}–{sr.get('max')} {sr.get('currency', '')}".strip()
+                        if sr.get("min") and sr.get("max")
+                        else None
+                    )
                     p = Posting(
-                        source=self.name, kind="ats", source_job_id=f"{c.token}:{j['id']}", company=c.name,
-                        title=j.get("text") or "", url=j.get("hostedUrl") or "", description=desc,
-                        location=cats.get("location"), country=to_iso2(j.get("country")),
-                        remote=j.get("workplaceType"), posted_at=iso_utc(j.get("createdAt")), salary_text=salary,
+                        source=self.name,
+                        kind="ats",
+                        source_job_id=f"{c.token}:{j['id']}",
+                        company=c.name,
+                        title=j.get("text") or "",
+                        url=j.get("hostedUrl") or "",
+                        description=desc,
+                        location=cats.get("location"),
+                        country=to_iso2(j.get("country")),
+                        remote=j.get("workplaceType"),
+                        posted_at=iso_utc(j.get("createdAt")),
+                        salary_text=salary,
                     )
                     ids.add(p.id)
                     out.postings.append(p)
                 out.complete_ids[f"{self.name}:{c.token}"] = ids
+
             out.run_unit(c.token, unit)
         return out

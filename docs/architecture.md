@@ -112,7 +112,9 @@ See [ADR 0005](adr/0005-public-repo-private-home.md).
 |---|---|
 | `schema_migrations` | applied migration versions |
 | `events` | append-only log of every state change and notable action; funnel metrics are computed from it |
-| `jobs` | one row per vacancy, with `state` and source fields (grows in S1) |
+| `jobs` | one row per vacancy: `state`, source, kind, company, title, url, location, country, posted_at, `fingerprint`, `drop_rule`, `duplicate_of`, `last_seen`, `digested_at`; description and signals in `data_json` |
+| `source_runs` | one row per source per collect run: status, fetched, new, kept, dropped, closed, errors |
+| `source_cursors` | per-source cursors (e.g. last Telegram post id per channel) |
 | `applications` | one row per (job) application, `state`, unique `idempotency_key` |
 | `conversations` | one row per thread with a recruiter, `state` |
 | `tasks` | the queue: type, payload, status, attempts, `reclaims`, `next_run_at`, lease, unique `idempotency_key`, `last_error` |
@@ -263,9 +265,9 @@ See [ADR 0004](adr/0004-llm-router.md).
 | command | timer | where |
 |---|---|---|
 | `run queue` | every minute | VM |
-| `run collect` | every 3 h, 08–23 (S1) | VM |
+| `run collect` | 08, 11, 14, 17, 20, 23 | VM |
 | `run label` | 07:00 + on demand (S2) | VM |
-| `run digest` | 09:00 (S1) | VM |
+| `run digest` | 09:00 | VM |
 | `run tailor` | after label (S3) | VM |
 | apply phases | weekdays 10–19 with jitter (S4) | laptop |
 | `run inbox` | every 15 min, 08–23 (S5) | VM + laptop |
@@ -313,3 +315,4 @@ from config from S1 on.
 | [0016](adr/0016-auto-apply.md) | applications auto-submitted when every check passes; cards are the fallback |
 | [0017](adr/0017-attention-tags.md) | attention tags on states: ok / needs_human / not_ok |
 | [0018](adr/0018-retention.md) | daily retention: delete old detail, keep resolutions |
+| [0019](adr/0019-collection.md) | collection: sources, polite HTTP, prefilter, dedupe, closures, digest |

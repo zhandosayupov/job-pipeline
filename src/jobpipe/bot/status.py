@@ -33,6 +33,7 @@ class StatusSnapshot:
     db_size_kb: int
     unknown_effects: list[str] = field(default_factory=list)
     needs_human: dict[str, int] = field(default_factory=dict)
+    sources: dict[str, str] = field(default_factory=dict)  # latest status per source
     notes: list[str] = field(default_factory=list)
 
 
@@ -53,6 +54,14 @@ def needs_human_counts(conn: sqlite3.Connection) -> dict[str, int]:
         if n:
             out[entity] = n
     return out
+
+
+def latest_source_status(conn: sqlite3.Connection) -> dict[str, str]:
+    rows = conn.execute(
+        "SELECT s.source, s.status FROM source_runs s "
+        "JOIN (SELECT source, MAX(id) id FROM source_runs GROUP BY source) m ON m.id = s.id"
+    ).fetchall()
+    return {r["source"]: r["status"] for r in rows}
 
 
 def gather(conn: sqlite3.Connection, clock: Clock, queue: Queue, tz: str, db_path: str | None) -> StatusSnapshot:
@@ -88,6 +97,7 @@ def gather(conn: sqlite3.Connection, clock: Clock, queue: Queue, tz: str, db_pat
         db_size_kb=size,
         unknown_effects=control.SideEffects(conn, clock).unknown(),
         needs_human=needs_human_counts(conn),
+        sources=latest_source_status(conn),
     )
 
 
@@ -133,6 +143,11 @@ def render(s: StatusSnapshot) -> str:
         lines.append("LLM сегодня: вызовов не было")
     for name, state in sorted(s.providers.items()):
         lines.append(f"  {name}: {state}")
+    if s.sources:
+        bad = {k: v for k, v in s.sources.items() if v not in ("ok", "skipped")}
+        ok = len(s.sources) - len(bad)
+        problems = ", ".join(f"{k} ({v})" for k, v in sorted(bad.items()))
+        lines.append(f"Источники: ok {ok}" + (f" · проблемы: {problems}" if bad else ""))
     lines.append(f"\nБД: схема v{s.schema_version}, {s.db_size_kb} КБ")
     lines += s.notes
     return "\n".join(lines)

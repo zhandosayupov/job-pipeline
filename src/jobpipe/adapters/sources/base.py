@@ -1,5 +1,6 @@
 """Source interface. A source is made of units (one board per company, one channel, ...); a failing
 unit makes the source `partial`, all units failing makes it `blocked` or `error`."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -15,8 +16,8 @@ from ..http import Blocked, FetchError, Http
 @dataclass
 class SourceContext:
     params: dict[str, Any] = field(default_factory=dict)
-    companies: list[Any] = field(default_factory=list)       # CompanyCfg rows for this ATS
-    cursors: dict[str, str] = field(default_factory=dict)    # read and updated by the source
+    companies: list[Any] = field(default_factory=list)  # CompanyCfg rows for this ATS
+    cursors: dict[str, str] = field(default_factory=dict)  # read and updated by the source
 
 
 @dataclass

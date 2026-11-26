@@ -1,0 +1,9 @@
+[Unit]
+Description=jobpipe: digest at 09:00 Almaty time
+
+[Timer]
+OnCalendar=*-*-* 09:00:00 Asia/Almaty
+Persistent=true
+
+[Install]
+WantedBy=timers.target

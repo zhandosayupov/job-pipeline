@@ -1,0 +1,48 @@
+# Job sources (S1). Copied to $JOBPIPE_HOME/config/sources.yaml by `jobpipe init`.
+# Every source has a recorded fixture in tests/fixtures/sources/ and a contract test.
+# Preview without touching the database: `jobpipe run collect --dry-run [--sources hn,jobicy]`.
+
+http:
+  user_agent: "jobpipe/0.1 (+https://github.com/zhandosayupov/job-pipeline)"
+  min_interval_s: 1.0        # per host
+  timeout_s: 30
+  respect_robots: true       # robots.txt refusals stop the source; never turned off for scraping
+
+health_alert_after: 3        # Telegram alert after this many consecutive failed runs of a source
+digest_max_items: 40
+
+sources:
+  # Company boards; which companies is in companies.yaml.
+  greenhouse: {enabled: true}
+  ashby: {enabled: true}
+  lever: {enabled: true}
+
+  amazon:
+    enabled: true
+    params:
+      query: "c++"
+      countries: [NLD, DEU, GBR, IRL, LUX, ARE, SGP, JPN]   # ISO3
+      max_pages: 3          # pages of 8
+
+  himalayas:
+    enabled: true
+    params: {queries: ["c++", "backend"], limit: 50}
+
+  jobicy:
+    enabled: true
+    params: {tags: ["c++", "golang", "python"], count: 50}
+
+  wwr:
+    enabled: true
+    params: {categories: [remote-back-end-programming-jobs, remote-full-stack-programming-jobs]}
+
+  arbeitnow:
+    enabled: true
+
+  hn:
+    enabled: true
+    params: {queries: ["c++", "visa", "relocation", "remote"]}
+
+  telegram:
+    enabled: true
+    params: {channels: [forcpp, opento_dev]}

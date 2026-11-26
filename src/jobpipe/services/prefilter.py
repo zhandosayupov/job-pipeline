@@ -8,6 +8,7 @@ Rules, in order; the first that fires drops the job and is recorded with the mat
   no_sponsorship     the posting refuses sponsorship and the job is neither remote nor in a country
                      the owner may work in without a visa
 """
+
 from __future__ import annotations
 
 import re
@@ -47,8 +48,11 @@ def signals(p: Posting) -> dict:
     visa, visa_ev = T.visa_signal(blob)
     remote = T.remote_signal("\n".join(filter(None, [p.remote, p.location, p.title]))) or T.remote_signal(p.description)
     return {
-        "visa": visa, "visa_evidence": visa_ev, "remote": remote,
-        "salary": p.salary_text or T.salary_text(p.description), "lang": T.detect_lang(f"{p.title}\n{p.description}"),
+        "visa": visa,
+        "visa_evidence": visa_ev,
+        "remote": remote,
+        "salary": p.salary_text or T.salary_text(p.description),
+        "lang": T.detect_lang(f"{p.title}\n{p.description}"),
         "excerpt": T.excerpt(p.description),
     }
 
