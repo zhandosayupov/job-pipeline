@@ -165,6 +165,9 @@ class LLMProvider(_Model):
     key_env: str
     model: str | None = None
     models: list[LLMModel] = Field(default_factory=list)
+    # "model": each model has its own quota (its own limits). "provider": one quota shared by all
+    # models, counted against the provider-level limits (when the provider limits the whole key).
+    quota_scope: Literal["model", "provider"] = "model"
     enabled: bool = True
     rpm: int | None = None
     rpd: int | None = None
@@ -215,6 +218,22 @@ class LLMConfig(_Model):
     retry_backoff_s: float = 2.0
     # Personal values replaced by placeholders before LLM calls marked personal (ADR 0008).
     pii_values: dict[str, list[str]] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _chains_name_known_targets(self) -> LLMConfig:
+        """A typo in a chain should fail at startup, not show up later as a skipped target."""
+        problems = []
+        for task, t in self.tasks.items():
+            for entry in t.chain:
+                pname, _, model_id = entry.partition("/")
+                provider = self.providers.get(pname)
+                if provider is None:
+                    problems.append(f"tasks.{task}.chain: unknown provider {pname!r}")
+                elif model_id and model_id not in {m.id for m in provider.resolved_models()}:
+                    problems.append(f"tasks.{task}.chain: provider {pname!r} has no model {model_id!r}")
+        if problems:
+            raise ValueError("; ".join(problems))
+        return self
 
 
 # --- secrets -------------------------------------------------------------------------

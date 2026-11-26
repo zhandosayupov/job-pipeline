@@ -31,6 +31,15 @@ A single `Router` serves every LLM task:
 * Personal requests (CV, messages) skip `trains_on_data` providers unless the owner allows it, and
   are pseudonymized when `pii_redaction: required` (ADR 0008).
 
+* `quota_scope: provider` counts one quota across all of a provider's models against the
+  provider-level limits, for providers that limit the whole key rather than each model. A 503
+  "high demand" is a model's capacity, not the key's quota, so trying the next model still helps.
+* Chain entries are validated when the config loads (unknown provider or model fails at startup),
+  and overlapping entries (`g` plus `g/big`) call each model once.
+
 ## Consequences
 Provider and model limits in config are maintained by the owner; the router never assumes a
 provider's limits. Model ids change: list them with `GET {base_url}/models` before editing.
+Retry budget: each target gets one retry on 5xx or timeout, so a chain of N targets can take about
+2N x `timeout_s` in the worst case. Fine for background tasks; an interactive path (a bot reply)
+should use a short chain and short timeouts. Idle `provider_state` rows are removed by retention.

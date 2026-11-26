@@ -54,8 +54,9 @@ def test_example_config_is_valid(tmp_path):
     cfg = load_config(home, env={})
     assert "gemini" in cfg.llm.providers
     assert cfg.llm.tasks["ping"].chain[0] == "gemini"
-    assert [m.id for m in cfg.llm.providers["gemini"].resolved_models()] == [
-        "gemini-flash-lite-latest", "gemini-flash-latest"]
+    models = [m.id for m in cfg.llm.providers["gemini"].resolved_models()]
+    assert models[0] == "gemini-flash-lite-latest" and "gemini-flash-latest" in models
+    assert cfg.llm.providers["gemini"].quota_scope == "provider"
 
 
 # --- logging --------------------------------------------------------------------------
@@ -122,7 +123,8 @@ def test_status_render():
         dead=[(7, "selftest.fail", "RuntimeError: boom")],
         running=[("run queue", 123, "2026-11-26T05:59:00.000000Z")],
         last_runs=[("run queue", "ok", "2026-11-26T05:58:00.000000Z")],
-        llm_today=[{"provider": "gemini", "calls": 3, "ok": 2, "tokens": 120}],
+        llm_today=[{"provider": "gemini", "model": "gemini-flash-lite-latest", "calls": 3, "ok": 2, "tokens": 120},
+                   {"provider": "gemini", "model": "gemini-flash-latest", "calls": 2, "ok": 0, "tokens": 0}],
         providers={"gemini": "cooldown until 06:01 UTC"},
         db_size_kb=64,
     )
@@ -132,7 +134,8 @@ def test_status_render():
     assert "dead 1, pending 2" in out and "к запуску сейчас 1" in out
     assert "#7 selftest.fail" in out
     assert "(pid 123) с 26.11 10:59" in out
-    assert "gemini: 3 вызовов, ok 2, 120 токенов" in out
+    assert "gemini/gemini-flash-lite-latest: 3 вызовов, ok 2, 120 токенов" in out
+    assert "gemini/gemini-flash-latest: 2 вызовов, ok 0" in out
     assert "схема v1, 64 КБ" in out
 
 

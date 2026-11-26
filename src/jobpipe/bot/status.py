@@ -64,8 +64,9 @@ def gather(conn: sqlite3.Connection, clock: Clock, queue: Queue, tz: str, db_pat
     ).fetchall()
     day_start = clock.now().astimezone(ZoneInfo(tz)).replace(hour=0, minute=0, second=0, microsecond=0)
     llm = conn.execute(
-        "SELECT provider, COUNT(*) AS calls, SUM(status = 'ok') AS ok, "
-        "COALESCE(SUM(tokens_in + tokens_out), 0) AS tokens FROM llm_calls WHERE ts >= ? GROUP BY provider",
+        "SELECT provider, model, COUNT(*) AS calls, SUM(status = 'ok') AS ok, "
+        "COALESCE(SUM(tokens_in + tokens_out), 0) AS tokens FROM llm_calls WHERE ts >= ? "
+        "GROUP BY provider, model ORDER BY provider, calls DESC",
         (iso(day_start),),
     ).fetchall()
     size = 0
@@ -88,6 +89,10 @@ def gather(conn: sqlite3.Connection, clock: Clock, queue: Queue, tz: str, db_pat
         unknown_effects=control.SideEffects(conn, clock).unknown(),
         needs_human=needs_human_counts(conn),
     )
+
+
+def _target(row: dict) -> str:
+    return f"{row['provider']}/{row['model']}" if row.get("model") else row["provider"]
 
 
 def _local(ts: str, tz: str) -> str:
@@ -123,7 +128,7 @@ def render(s: StatusSnapshot) -> str:
     lines.append("")
     if s.llm_today:
         lines.append("LLM сегодня:")
-        lines += [f"  {r['provider']}: {r['calls']} вызовов, ok {r['ok']}, {r['tokens']} токенов" for r in s.llm_today]
+        lines += [f"  {_target(r)}: {r['calls']} вызовов, ok {r['ok']}, {r['tokens']} токенов" for r in s.llm_today]
     else:
         lines.append("LLM сегодня: вызовов не было")
     for name, state in sorted(s.providers.items()):

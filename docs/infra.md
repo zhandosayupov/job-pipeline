@@ -72,8 +72,11 @@ $0 it does not answer. Free-tier prompts may be used for training, hence `trains
 Model ids change; list them before editing `llm.yaml`:
 
 ```bash
-sudo bash -c 'source /etc/jobpipe/secrets.env; curl -s https://generativelanguage.googleapis.com/v1beta/openai/models -H "Authorization: Bearer $GEMINI_API_KEY"' | grep -o '"id": *"[^"]*flash[^"]*"'
+sudo bash -c 'source /etc/jobpipe/secrets.env; printf "url = \"https://generativelanguage.googleapis.com/v1beta/openai/models\"\nsilent\nheader = \"Authorization: Bearer %s\"\n" "$GEMINI_API_KEY" | curl --config -' | grep -o '"id": *"[^"]*flash[^"]*"'
 ```
+
+The key goes to curl on stdin (`--config -`; `printf` is a bash builtin), never on its command line,
+where `ps` would show it to other users of the machine. Use the same pattern for any manual check.
 
 On 2026-11-26 `gemini-flash-latest` answered `503 high demand` or timed out, while
 `gemini-flash-lite-latest` answered in about 4 s; the example config tries lite first.

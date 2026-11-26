@@ -28,15 +28,27 @@ providers:
     timeout_s: 30
     day_reset_tz: America/Los_Angeles
     trains_on_data: true             # free tier: assume prompts may be used for training
-    # Ids seen on the free tier on 2026-11-26; list yours with GET .../openai/models.
-    # The bigger model often answers 503 "high demand", so the lite one goes first.
+    # Tested on the free tier on 2026-11-26 ("say pong"; list yours with GET .../openai/models):
+    #   200 in <1 s: gemini-3.5-flash-lite, gemini-3.1-flash-lite, gemini-flash-lite-latest
+    #   503 "high demand": gemini-3.8-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-flash-latest
+    #   timeout at 60 s: gemini-3.7-flash · 404 (retired): gemini-2.5-flash, gemini-2.5-flash-lite
+    # gemini-flash-lite-latest first; the other lite models catch a 503 on it; the bigger ones are
+    # a reserve with a short timeout. A 503 is that model being overloaded, so another model helps.
+    # One quota for the whole key (as AI Studio showed it): counted across all models below.
+    # Limits are conservative placeholders: copy the real ones from your AI Studio rate-limit page.
+    quota_scope: provider
+    rpm: 10
+    rpd: 500
     models:
       - id: gemini-flash-lite-latest
-        rpm: 10
-        rpd: 500
+      - id: gemini-3.5-flash-lite
+      - id: gemini-3.1-flash-lite
+      - id: gemini-3.8-flash
+        timeout_s: 20
+      - id: gemini-3.5-flash
+        timeout_s: 20
       - id: gemini-flash-latest
-        rpm: 5
-        rpd: 100
+        timeout_s: 20
   groq:
     enabled: false
     base_url: https://api.groq.com/openai/v1

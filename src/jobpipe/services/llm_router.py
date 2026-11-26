@@ -172,7 +172,13 @@ class Router:
             if model_id:
                 models = [m for m in models if m.id == model_id] or [LLMModel(id=model_id, enabled=False)]
             targets += [_Target(pname, provider, m) for m in models]
-        return targets
+        seen: set[str] = set()
+        unique = []
+        for t in targets:  # "g" plus "g/big" must not call big twice
+            if t.key not in seen:
+                seen.add(t.key)
+                unique.append(t)
+        return unique
 
     def _provider_skip_reason(self, t: _Target, personal: bool) -> str | None:
         p = t.provider
@@ -200,14 +206,17 @@ class Router:
 
     def _quota_reason(self, t: _Target, est_tokens: int) -> str | None:
         assert t.provider is not None and t.model is not None
-        m = t.model
         now = self.clock.now()
         minute_ago = iso(now - timedelta(seconds=60))
         day_start = iso(self._day_start(now, t.provider.day_reset_tz))
-        q = ("SELECT COUNT(*), COALESCE(SUM(tokens_in + tokens_out), 0) FROM llm_calls "
-             "WHERE provider = ? AND model = ? AND ts >= ?")
-        n_min, tok_min = self.conn.execute(q, (t.provider_name, m.id, minute_ago)).fetchone()
-        n_day, tok_day = self.conn.execute(q, (t.provider_name, m.id, day_start)).fetchone()
+        q = "SELECT COUNT(*), COALESCE(SUM(tokens_in + tokens_out), 0) FROM llm_calls WHERE provider = ? AND ts >= ?"
+        if t.provider.quota_scope == "provider":
+            m, args = t.provider, (t.provider_name,)      # one quota for all models, provider limits
+        else:
+            m, args = t.model, (t.provider_name, t.model.id)
+            q = q.replace("provider = ?", "provider = ? AND model = ?")
+        n_min, tok_min = self.conn.execute(q, (*args, minute_ago)).fetchone()
+        n_day, tok_day = self.conn.execute(q, (*args, day_start)).fetchone()
         if m.rpm is not None and n_min + 1 > m.rpm:
             return "rpm quota"
         if m.rpd is not None and n_day + 1 > m.rpd:

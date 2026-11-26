@@ -230,10 +230,51 @@ def test_chain_entry_can_pick_one_model(conn, clock, prompts):
     r, t = multi_router(conn, clock, prompts, {"big": [OK]}, chain=("g/big",))
     assert r.complete("ping", {"word": "hi"}).model == "big"
     assert [c[0] for c in t.calls] == ["big"]
-    r, _ = multi_router(conn, clock, prompts, {}, chain=("g/nope",))
-    with pytest.raises(LLMUnavailable) as e:
-        r.complete("ping", {"word": "hi"})
-    assert "g/nope: skipped (model disabled or not configured)" in e.value.attempts
+
+
+def test_provider_wide_quota_counts_all_models(conn, clock, prompts):
+    """quota_scope: provider means one limit for the whole key, whichever model answered."""
+    g = LLMProvider(base_url="https://g", key_env="KG", quota_scope="provider", rpm=2,
+                    models=[LLMModel(id="lite"), LLMModel(id="big")])
+    cfg = LLMConfig(providers={"g": g, "b": PROVIDERS["b"]}, tasks={"ping": LLMTask(chain=["g", "b"])})
+    t = ByModelTransport({"lite": [OK, OK], "big": [OK], "mb": [OK, OK]})
+    r = Router(conn, clock, cfg, Secrets({"KG": "x" * 8, "KB": "y" * 8}), t, prompts, sleep=lambda s: None)
+    assert r.complete("ping", {"word": "hi"}).model == "lite"
+    assert r.complete("ping", {"word": "hi"}).model == "lite"     # 2 calls: the key's rpm is used up
+    res = r.complete("ping", {"word": "hi"})
+    assert res.provider == "b"                                     # big shares the quota, so it is skipped too
+    assert "g/lite: skipped (rpm quota)" in res.attempts and "g/big: skipped (rpm quota)" in res.attempts
+    clock.advance(61)
+    t.script["lite"].append(LLMHTTPError(503, "x"))                # one 503 retried once = 2 calls
+    t.script["lite"].append(LLMHTTPError(503, "x"))
+    res = r.complete("ping", {"word": "hi"})
+    assert res.provider == "b" and "g/big: skipped (rpm quota)" in res.attempts  # lite's 503s used the key
+
+
+def test_chain_typos_fail_at_config_load():
+    g = LLMProvider(base_url="https://g", key_env="KG", models=[LLMModel(id="lite")])
+    with pytest.raises(ValueError, match="has no model 'lte'"):
+        LLMConfig(providers={"g": g}, tasks={"ping": LLMTask(chain=["g/lte"])})
+    with pytest.raises(ValueError, match="unknown provider 'gx'"):
+        LLMConfig(providers={"g": g}, tasks={"ping": LLMTask(chain=["gx"])})
+
+
+def test_overlapping_chain_entries_call_each_model_once(conn, clock, prompts):
+    overloaded = LLMHTTPError(503, "x")
+    r, t = multi_router(conn, clock, prompts, {"lite": [overloaded, overloaded], "big": [overloaded, overloaded],
+                                               "mb": [OK]}, chain=("g", "g/big", "b"))
+    assert r.complete("ping", {"word": "hi"}).provider == "b"
+    assert [c[0] for c in t.calls] == ["lite", "lite", "big", "big", "mb"]
+
+
+def test_disabled_model_inside_a_provider_is_skipped(conn, clock, prompts):
+    g = LLMProvider(base_url="https://g", key_env="KG", models=[LLMModel(id="lite", enabled=False),
+                                                                 LLMModel(id="big")])
+    cfg = LLMConfig(providers={"g": g}, tasks={"ping": LLMTask(chain=["g"])})
+    t = ByModelTransport({"big": [OK]})
+    r = Router(conn, clock, cfg, Secrets({"KG": "kg-key"}), t, prompts, sleep=lambda s: None)
+    res = r.complete("ping", {"word": "hi"})
+    assert res.model == "big" and res.attempts[0] == "g/lite: skipped (model disabled or not configured)"
 
 
 def test_provider_level_skip_is_reported_once(conn, clock, prompts):
