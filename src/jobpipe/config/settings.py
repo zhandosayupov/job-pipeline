@@ -7,7 +7,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -236,6 +236,51 @@ class LLMConfig(_Model):
         return self
 
 
+# --- sources.yaml, companies.yaml, filters.yaml (S1) ----------------------------------
+
+
+class SourceCfg(_Model):
+    enabled: bool = False
+    tier: int = 1
+    params: dict[str, Any] = Field(default_factory=dict)
+
+
+class SourcesHttpCfg(_Model):
+    user_agent: str = "jobpipe/0.1 (+https://github.com/zhandosayupov/job-pipeline)"
+    min_interval_s: float = 1.0      # per host
+    timeout_s: float = 30
+    respect_robots: bool = True
+
+
+class SourcesCfg(_Model):
+    sources: dict[str, SourceCfg] = Field(default_factory=dict)
+    http: SourcesHttpCfg = SourcesHttpCfg()
+    health_alert_after: int = 3      # consecutive non-ok runs before a Telegram alert
+    digest_max_items: int = 40       # the rest is counted, not listed
+
+
+class CompanyCfg(_Model):
+    name: str
+    ats: Literal["greenhouse", "ashby", "lever"]
+    token: str
+    priority: int = 2
+    enabled: bool = True
+
+
+class CompaniesCfg(_Model):
+    companies: list[CompanyCfg] = Field(default_factory=list)
+
+
+class FiltersCfg(_Model):
+    """Keyword lists, EN + RU. Plain entries match whole words, case-insensitive; `re:` is a regex."""
+
+    title_include: list[str] = Field(default_factory=list)
+    title_exclude: list[str] = Field(default_factory=list)
+    title_exclude_exceptions: list[str] = Field(default_factory=list)
+    text_exclude: list[str] = Field(default_factory=list)
+    onsite_excluded_locations: list[str] = Field(default_factory=list)
+
+
 # --- secrets -------------------------------------------------------------------------
 
 
@@ -294,6 +339,9 @@ class AppConfig:
     llm: LLMConfig
     secrets: Secrets
     policy: PolicyCfg = field(default_factory=PolicyCfg)
+    sources: SourcesCfg = field(default_factory=SourcesCfg)
+    companies: CompaniesCfg = field(default_factory=CompaniesCfg)
+    filters: FiltersCfg = field(default_factory=FiltersCfg)
 
 
 def resolve_paths(home: Path | None = None) -> Paths:
@@ -331,6 +379,9 @@ def load_config(home: Path | None = None, env: dict[str, str] | None = None) -> 
     settings = Settings.model_validate(_read_yaml(paths.config_dir / "settings.yaml"))
     llm = LLMConfig.model_validate(_read_yaml(paths.config_dir / "llm.yaml"))
     policy = PolicyCfg.model_validate(_read_yaml(paths.config_dir / "policy.yaml"))
+    sources = SourcesCfg.model_validate(_read_yaml(paths.config_dir / "sources.yaml"))
+    companies = CompaniesCfg.model_validate(_read_yaml(paths.config_dir / "companies.yaml"))
+    filters = FiltersCfg.model_validate(_read_yaml(paths.config_dir / "filters.yaml"))
     values: dict[str, str] = {}
     if paths.secrets_file.exists():
         values.update(parse_env_file(paths.secrets_file.read_text(encoding="utf-8")))
@@ -339,4 +390,5 @@ def load_config(home: Path | None = None, env: dict[str, str] | None = None) -> 
     for key in wanted:
         if environ.get(key):
             values[key] = environ[key]
-    return AppConfig(paths=paths, settings=settings, llm=llm, secrets=Secrets(values), policy=policy)
+    return AppConfig(paths=paths, settings=settings, llm=llm, secrets=Secrets(values), policy=policy,
+                     sources=sources, companies=companies, filters=filters)
