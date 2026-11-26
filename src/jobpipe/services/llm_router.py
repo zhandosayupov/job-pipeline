@@ -16,7 +16,7 @@ from pydantic import BaseModel, ValidationError
 
 from ..adapters.storage.db import tx
 from ..clock import Clock, iso, parse_iso
-from ..config.settings import LLMConfig, LLMProvider, Secrets
+from ..config.settings import LLMConfig, LLMModel, LLMProvider, Secrets
 from ..ports.llm import LLMHTTPError, LLMRequest, LLMResponse, LLMTimeout, LLMTransport
 from .pii import Pseudonymizer
 from .prompts import PromptStore
@@ -48,6 +48,19 @@ class Completion:
 
 class _InvalidOutput(Exception):
     pass
+
+
+@dataclass(frozen=True)
+class _Target:
+    """One (provider, model) pair from a task's chain."""
+
+    provider_name: str
+    provider: LLMProvider | None
+    model: LLMModel | None
+
+    @property
+    def key(self) -> str:
+        return f"{self.provider_name}/{self.model.id}" if self.model else self.provider_name
 
 
 def _parse(schema: type[BaseModel], text: str) -> BaseModel:
@@ -117,61 +130,100 @@ class Router:
         est_tokens = sum(len(m["content"]) for m in messages) // 4 + tcfg.max_tokens
         attempts: list[str] = []
 
-        for name in tcfg.chain:
-            provider = self.cfg.providers.get(name)
-            reason = self._skip_reason(name, provider, personal, est_tokens)
+        for target in self._expand(tcfg.chain):
+            reason = self._provider_skip_reason(target, personal)
             if reason:
-                attempts.append(f"{name}: skipped ({reason})")
+                line = f"{target.provider_name}: skipped ({reason})"
+                if line not in attempts:  # once per provider, not once per model
+                    attempts.append(line)
                 continue
-            assert provider is not None
-            key = self.secrets.get(provider.key_env)
+            reason = self._model_skip_reason(target, est_tokens)
+            if reason:
+                attempts.append(f"{target.key}: skipped ({reason})")
+                continue
+            assert target.provider is not None and target.model is not None
+            key = self.secrets.get(target.provider.key_env)
             assert key is not None
             request = LLMRequest(
-                model=provider.model,
+                model=target.model.id,
                 messages=messages,
                 temperature=tcfg.temperature,
                 max_tokens=tcfg.max_tokens,
                 json_mode=schema is not None,
             )
-            result = self._try_provider(task, name, provider, key, request, prompt.version, schema, pseudo, attempts)
+            result = self._try_target(task, target, key, request, prompt.version, schema, pseudo, attempts)
             if result is not None:
                 result.attempts = attempts
                 return result
         raise LLMUnavailable(task, attempts)
 
-    # --- provider selection ------------------------------------------------------------
+    # --- target selection --------------------------------------------------------------
 
-    def _skip_reason(self, name: str, provider: LLMProvider | None, personal: bool, est_tokens: int) -> str | None:
-        if provider is None:
+    def _expand(self, chain: list[str]) -> list[_Target]:
+        """Chain entries are "provider" (all its enabled models, in order) or "provider/model-id"."""
+        targets: list[_Target] = []
+        for entry in chain:
+            pname, _, model_id = entry.partition("/")
+            provider = self.cfg.providers.get(pname)
+            if provider is None:
+                targets.append(_Target(pname, None, None))
+                continue
+            models = provider.resolved_models()
+            if model_id:
+                models = [m for m in models if m.id == model_id] or [LLMModel(id=model_id, enabled=False)]
+            targets += [_Target(pname, provider, m) for m in models]
+        seen: set[str] = set()
+        unique = []
+        for t in targets:  # "g" plus "g/big" must not call big twice
+            if t.key not in seen:
+                seen.add(t.key)
+                unique.append(t)
+        return unique
+
+    def _provider_skip_reason(self, t: _Target, personal: bool) -> str | None:
+        p = t.provider
+        if p is None:
             return "not configured"
-        if not provider.enabled:
+        if not p.enabled:
             return "disabled"
-        if not self.secrets.get(provider.key_env):
-            return f"no key {provider.key_env}"
-        if personal and provider.trains_on_data and not self.cfg.personal_on_training_providers:
+        if not self.secrets.get(p.key_env):
+            return f"no key {p.key_env}"
+        if personal and p.trains_on_data and not self.cfg.personal_on_training_providers:
             return "trains on data"
+        return None
+
+    def _model_skip_reason(self, t: _Target, est_tokens: int) -> str | None:
+        assert t.model is not None
+        if not t.model.enabled:
+            return "model disabled or not configured"
         now = iso(self.clock.now())
-        st = self._state(name)
+        st = self._state(t.key)
         if st["cooldown_until"] and st["cooldown_until"] > now:
             return f"cooldown until {st['cooldown_until']}"
         if st["breaker_until"] and st["breaker_until"] > now:
             return f"breaker open until {st['breaker_until']}"
-        return self._quota_reason(name, provider, est_tokens)
+        return self._quota_reason(t, est_tokens)
 
-    def _quota_reason(self, name: str, p: LLMProvider, est_tokens: int) -> str | None:
+    def _quota_reason(self, t: _Target, est_tokens: int) -> str | None:
+        assert t.provider is not None and t.model is not None
         now = self.clock.now()
         minute_ago = iso(now - timedelta(seconds=60))
-        day_start = iso(self._day_start(now, p.day_reset_tz))
+        day_start = iso(self._day_start(now, t.provider.day_reset_tz))
         q = "SELECT COUNT(*), COALESCE(SUM(tokens_in + tokens_out), 0) FROM llm_calls WHERE provider = ? AND ts >= ?"
-        n_min, tok_min = self.conn.execute(q, (name, minute_ago)).fetchone()
-        n_day, tok_day = self.conn.execute(q, (name, day_start)).fetchone()
-        if p.rpm is not None and n_min + 1 > p.rpm:
+        if t.provider.quota_scope == "provider":
+            m, args = t.provider, (t.provider_name,)      # one quota for all models, provider limits
+        else:
+            m, args = t.model, (t.provider_name, t.model.id)
+            q = q.replace("provider = ?", "provider = ? AND model = ?")
+        n_min, tok_min = self.conn.execute(q, (*args, minute_ago)).fetchone()
+        n_day, tok_day = self.conn.execute(q, (*args, day_start)).fetchone()
+        if m.rpm is not None and n_min + 1 > m.rpm:
             return "rpm quota"
-        if p.rpd is not None and n_day + 1 > p.rpd:
+        if m.rpd is not None and n_day + 1 > m.rpd:
             return "rpd quota"
-        if p.tpm is not None and tok_min + est_tokens > p.tpm:
+        if m.tpm is not None and tok_min + est_tokens > m.tpm:
             return "tpm quota"
-        if p.tpd is not None and tok_day + est_tokens > p.tpd:
+        if m.tpd is not None and tok_day + est_tokens > m.tpd:
             return "tpd quota"
         return None
 
@@ -182,11 +234,10 @@ class Router:
 
     # --- calling -----------------------------------------------------------------------
 
-    def _try_provider(
+    def _try_target(
         self,
         task: str,
-        name: str,
-        provider: LLMProvider,
+        t: _Target,
         key: str,
         request: LLMRequest,
         version: str,
@@ -194,6 +245,9 @@ class Router:
         pseudo: Pseudonymizer | None,
         attempts: list[str],
     ) -> Completion | None:
+        assert t.provider is not None and t.model is not None
+        provider = t.provider.model_copy(update={"timeout_s": t.model.timeout_s})
+        name = t.key  # cooldown, breaker and attempt lines are per model
         transient_retries = 1
         repaired = False
         while True:
@@ -203,13 +257,13 @@ class Router:
             except LLMHTTPError as e:
                 latency = int((time.monotonic() - t0) * 1000)
                 if e.status == 429:
-                    self._record(task, name, provider, version, "rate_limited", latency, error=str(e))
+                    self._record(task, t, version, "rate_limited", latency, error=str(e))
                     cooldown = e.retry_after_s if e.retry_after_s is not None else self.cfg.default_cooldown_s
                     self._set_cooldown(name, cooldown)
                     attempts.append(f"{name}: 429, cooldown {cooldown:.0f}s")
                     return None
                 retryable = e.status == 0 or e.status >= 500
-                self._record(task, name, provider, version, "error", latency, error=str(e))
+                self._record(task, t, version, "error", latency, error=str(e))
                 if retryable and transient_retries > 0:
                     transient_retries -= 1
                     self.sleep(self.cfg.retry_backoff_s * (1 + self.rng.random()))
@@ -219,7 +273,7 @@ class Router:
                 return None
             except LLMTimeout as e:
                 latency = int((time.monotonic() - t0) * 1000)
-                self._record(task, name, provider, version, "timeout", latency, error=str(e)[:200])
+                self._record(task, t, version, "timeout", latency, error=str(e)[:200])
                 if transient_retries > 0:
                     transient_retries -= 1
                     self.sleep(self.cfg.retry_backoff_s * (1 + self.rng.random()))
@@ -235,7 +289,7 @@ class Router:
                 try:
                     data = _parse(schema, text)
                 except _InvalidOutput as e:
-                    self._record(task, name, provider, version, "invalid_output", latency,
+                    self._record(task, t, version, "invalid_output", latency,
                                  resp.tokens_in, resp.tokens_out, error=str(e))
                     if not repaired:
                         repaired = True
@@ -255,14 +309,14 @@ class Router:
                     self._failure(name)
                     attempts.append(f"{name}: invalid output after repair")
                     return None
-            self._record(task, name, provider, version, "ok", latency, resp.tokens_in, resp.tokens_out)
+            self._record(task, t, version, "ok", latency, resp.tokens_in, resp.tokens_out)
             self._success(name)
             attempts.append(f"{name}: ok")
             return Completion(
                 text=text,
                 data=data,
-                provider=name,
-                model=provider.model,
+                provider=t.provider_name,
+                model=t.model.id,
                 prompt_version=version,
                 tokens_in=resp.tokens_in,
                 tokens_out=resp.tokens_out,
@@ -271,17 +325,18 @@ class Router:
 
     # --- ledger and provider state -----------------------------------------------------
 
-    def _record(self, task: str, name: str, p: LLMProvider, version: str, status: str, latency_ms: int,
+    def _record(self, task: str, t: _Target, version: str, status: str, latency_ms: int,
                 tokens_in: int = 0, tokens_out: int = 0, error: str | None = None) -> None:
+        assert t.model is not None
         with tx(self.conn):
             self.conn.execute(
                 "INSERT INTO llm_calls(ts, task, provider, model, prompt_version, status, tokens_in, tokens_out, "
                 "latency_ms, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (iso(self.clock.now()), task, name, p.model, version, status, tokens_in, tokens_out,
+                (iso(self.clock.now()), task, t.provider_name, t.model.id, version, status, tokens_in, tokens_out,
                  latency_ms, error),
             )
         if status != "ok":
-            log.warning("llm call failed", extra={"data": {"task": task, "provider": name, "status": status,
+            log.warning("llm call failed", extra={"data": {"task": task, "target": t.key, "status": status,
                                                            "error": (error or "")[:200]}})
 
     def _state(self, name: str) -> sqlite3.Row:

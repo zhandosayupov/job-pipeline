@@ -1,0 +1,20 @@
+name: leak-guard
+
+# Runs on every change, docs included: secrets and personal data can leak through any file.
+# Standard library only, so no install step; takes a few seconds.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  leak-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Leak guard
+        run: python3 tools/leak_guard.py --all

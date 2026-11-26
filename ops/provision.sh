@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Idempotent provisioning for a Debian 12 / Ubuntu 22.04+ VM (GCP e2-micro).
+# Idempotent provisioning for a Debian 12 or 13 / Ubuntu 22.04+ VM (GCP e2-micro); tested on Debian 13.
 # Usage (as root):  bash ops/provision.sh [REPO_URL] [BRANCH]
 # Safe to re-run: every step checks before it changes anything.
 set -euo pipefail

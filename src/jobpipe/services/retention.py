@@ -91,6 +91,15 @@ def run_retention(
                 conn, "applications", frozenset(states.terminal_states(states.APPLICATION)),
                 cutoff(cfg.applications_compact_days), cfg.keep_fields.get("application", []))
 
+            # Rows with nothing active (no running cooldown or breaker, no failure streak) carry no
+            # information; this also removes keys left over when a provider gained a models list.
+            now_iso = iso(now)
+            counts["provider_state"] = conn.execute(
+                "DELETE FROM provider_state WHERE consecutive_failures = 0 "
+                "AND (cooldown_until IS NULL OR cooldown_until < ?) AND (breaker_until IS NULL OR breaker_until < ?)",
+                (now_iso, now_iso),
+            ).rowcount
+
             counts["side_effects_compacted"] = conn.execute(
                 "UPDATE side_effects SET data_json = '{}' WHERE status IN ('done', 'failed') "
                 "AND updated_at < ? AND data_json != '{}'",

@@ -28,6 +28,13 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
   to. Keep the old tree until the sync (and ideally a `/healthz` check) succeeds, and restore it
   plus restart the units if they fail.
 
+## Doc nits
+
+- `docs/adr/0018-retention.md`: add the cleanup of idle `provider_state` rows to the list of what
+  retention deletes.
+- `docs/architecture.md` (data model table): `provider_state` is per target (`provider/model`), not
+  "per-provider" (ADR 0004 already says so).
+
 ## Tooling
 
 - **Security review workflow** (`anthropics/claude-code-security-review`): needs an Anthropic API

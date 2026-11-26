@@ -144,11 +144,30 @@ class PolicyCfg(_Model):
 # --- llm.yaml ------------------------------------------------------------------------
 
 
+class LLMModel(_Model):
+    """One model of a provider. Limits left empty fall back to the provider's."""
+
+    id: str
+    enabled: bool = True
+    rpm: int | None = None
+    rpd: int | None = None
+    tpm: int | None = None
+    tpd: int | None = None
+    timeout_s: float | None = None
+
+
 class LLMProvider(_Model):
+    """A provider and its models, tried in order. Either `models` (preferred) or a single `model`.
+    Quotas, cooldowns and the breaker are kept per model: free tiers limit each model separately."""
+
     kind: Literal["openai_compat"] = "openai_compat"
     base_url: str
-    model: str
     key_env: str
+    model: str | None = None
+    models: list[LLMModel] = Field(default_factory=list)
+    # "model": each model has its own quota (its own limits). "provider": one quota shared by all
+    # models, counted against the provider-level limits (when the provider limits the whole key).
+    quota_scope: Literal["model", "provider"] = "model"
     enabled: bool = True
     rpm: int | None = None
     rpd: int | None = None
@@ -159,8 +178,29 @@ class LLMProvider(_Model):
     timeout_s: float = 60
     json_mode: bool = True
 
+    @model_validator(mode="after")
+    def _one_way_to_name_models(self) -> LLMProvider:
+        if bool(self.model) == bool(self.models):
+            raise ValueError("set exactly one of `model` or `models`")
+        return self
+
+    def resolved_models(self) -> list[LLMModel]:
+        """Models in order, with provider-level limits filled in where a model sets none."""
+        base = self.models or [LLMModel(id=self.model or "")]
+        out = []
+        for m in base:
+            out.append(m.model_copy(update={
+                "rpm": m.rpm if m.rpm is not None else self.rpm,
+                "rpd": m.rpd if m.rpd is not None else self.rpd,
+                "tpm": m.tpm if m.tpm is not None else self.tpm,
+                "tpd": m.tpd if m.tpd is not None else self.tpd,
+                "timeout_s": m.timeout_s if m.timeout_s is not None else self.timeout_s,
+            }))
+        return out
+
 
 class LLMTask(_Model):
+    # Entries are "provider" (all its models, in order) or "provider/model-id" (just that one).
     chain: list[str]
     prompt_version: str = "v1"
     temperature: float = 0.2
@@ -178,6 +218,22 @@ class LLMConfig(_Model):
     retry_backoff_s: float = 2.0
     # Personal values replaced by placeholders before LLM calls marked personal (ADR 0008).
     pii_values: dict[str, list[str]] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _chains_name_known_targets(self) -> LLMConfig:
+        """A typo in a chain should fail at startup, not show up later as a skipped target."""
+        problems = []
+        for task, t in self.tasks.items():
+            for entry in t.chain:
+                pname, _, model_id = entry.partition("/")
+                provider = self.providers.get(pname)
+                if provider is None:
+                    problems.append(f"tasks.{task}.chain: unknown provider {pname!r}")
+                elif model_id and model_id not in {m.id for m in provider.resolved_models()}:
+                    problems.append(f"tasks.{task}.chain: provider {pname!r} has no model {model_id!r}")
+        if problems:
+            raise ValueError("; ".join(problems))
+        return self
 
 
 # --- secrets -------------------------------------------------------------------------

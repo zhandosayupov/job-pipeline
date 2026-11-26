@@ -5,6 +5,7 @@ Self-hosted job search pipeline for one owner. Read `docs/architecture.md` and t
 
 ## Commands
 - `uv sync` · `uv run pytest -q` · `uv run ruff check .` · `uv run python tools/leak_guard.py --all`
+- CI (`ci.yml`) runs on code paths only; `leak-guard.yml` runs on every change
 
 ## How to review a PR here
 - Review the PR's **current head**. Run `uv sync`, `uv run pytest -q`, `uv run ruff check .` and

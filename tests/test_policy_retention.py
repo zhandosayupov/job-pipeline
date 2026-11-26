@@ -211,6 +211,16 @@ def test_llm_daily_merges_a_day_split_across_two_retention_runs(conn, clock):
     assert [tuple(r) for r in rows] == [("2026-10-01", 2, 1, 150, 10, 0.75)]
 
 
+def test_retention_drops_idle_provider_state_only(conn, clock):
+    later = "2099-01-01T00:00:00.000000Z"
+    conn.execute("INSERT INTO provider_state(provider) VALUES ('gemini')")                 # old key, idle
+    conn.execute("INSERT INTO provider_state(provider, cooldown_until) VALUES ('g/a', ?)", (later,))
+    conn.execute("INSERT INTO provider_state(provider, consecutive_failures) VALUES ('g/b', 2)")
+    assert run_retention(conn, clock, RetentionCfg())["provider_state"] == 1
+    left = {r[0] for r in conn.execute("SELECT provider FROM provider_state")}
+    assert left == {"g/a", "g/b"}
+
+
 def test_compaction_marker_does_not_depend_on_json_formatting(conn, clock):
     _job(conn, clock, "j", ["dropped"], {})
     conn.execute("""UPDATE jobs SET data_json = '{"compacted":true,"resolution":"dropped"}' WHERE id = 'j'""")

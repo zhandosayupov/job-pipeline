@@ -1,57 +1,100 @@
 # Infrastructure
 
-## Target
+## Target (deployed 2026-11-26)
 
-* GCP Compute Engine `e2-micro`, Debian 12, 30 GB standard persistent disk, region `us-central1`
-  (or `us-west1` / `us-east1`: the Always Free regions).
+* GCP Compute Engine `e2-micro` (2 shared vCPU, 1 GB), region `us-central1`, Debian 13 (trixie),
+  30 GB **standard** persistent disk. Always Free regions: `us-central1`, `us-west1`, `us-east1`.
 * 2 GB swap file, journald capped at 200 MB.
-* One resident unit (`jobpipe-bot`) and oneshot units on timers (`jobpipe-queue`, `jobpipe-backup`).
+* One resident unit (`jobpipe-bot`) and oneshot units on timers (`jobpipe-queue` every minute,
+  `jobpipe-backup` 03:00 and `jobpipe-retention` 04:00 Almaty, i.e. 22:00 and 23:00 UTC).
 
 ## Free Tier terms: verify at deploy time
 
-Free Tier terms change. Before creating the VM, check the current
+Free Tier terms change. Check the current
 [Google Cloud Free Tier page](https://cloud.google.com/free/docs/free-cloud-features#compute) and
 record what it says here, with the date:
 
 | item | expected | verified on / result |
 |---|---|---|
-| e2-micro instance-hours in the free regions | 1 instance per month | _todo_ |
-| standard persistent disk | 30 GB-month | _todo_ |
-| outbound data transfer | 1 GB/month (excluding China and Australia) | _todo_ |
-| external IPv4 address on the free VM | may be billed separately: check | _todo_ |
+| e2-micro instance-hours in the free regions | 1 instance per month | the VM form's estimate shows the list price ($6.11/month); check Billing → Reports a day after creation |
+| standard persistent disk | 30 GB-month | 2026-11-26: the form shows $0.00 for 30 GB standard |
+| outbound data transfer | Standard network tier: "200 GB / mo free in every region" (shown in the form) | 2026-11-26: Standard tier selected |
+| external IPv4 address on the free VM | may be billed separately | _check Billing → Reports_ |
 | Cloud Storage for backups | 5 GB-month in US regions | _todo_ |
 
-Set a budget alert (for example 1 USD) on the billing account so any charge is noticed at once.
+Keep a budget alert (1 USD) on the billing account so any charge is noticed at once.
 
-## Steps (owner does the account parts)
+## Creating the VM (console choices that matter)
 
-1. Create the GCP project and billing account, and set the budget alert. (Owner.)
-2. Create the VM: `e2-micro`, Debian 12, 30 GB standard disk, free region, no extra services.
-3. SSH in, then:
-   ```bash
-   sudo apt-get install -y git
-   git clone https://github.com/zhandosayupov/job-pipeline.git /tmp/jp
-   sudo bash /tmp/jp/ops/provision.sh
-   ```
-4. Fill `/etc/jobpipe/secrets.env` (`TELEGRAM_BOT_TOKEN`, `GEMINI_API_KEY`) and set
-   `telegram.owner_id` in `/var/lib/jobpipe/config/settings.yaml`. Re-run `provision.sh`: it starts
-   the bot once both are set.
-5. Check: `/status` in Telegram, `curl -s localhost:8080/healthz`, `systemctl list-timers 'jobpipe-*'`.
+| section | setting | why |
+|---|---|---|
+| Machine configuration | series E2, `e2-micro` | the only free machine type |
+| Advanced → provisioning model | **Standard**, not Spot | Spot VMs can be stopped at any time |
+| Advanced → on host maintenance | Migrate VM instance; automatic restart **On** | survives maintenance and crashes |
+| OS and storage | Debian 13, **Standard persistent disk**, 30 GB | Balanced is not free |
+| Data protection | **No backups** | snapshots are billed; the DB is backed up nightly by jobpipe |
+| Networking | no HTTP/HTTPS firewall rules; external IPv4 Ephemeral; **Standard** network tier | nothing listens publicly; Standard tier has the larger free egress |
+| Observability | Ops Agent **off** | it uses ~100 MB of the 1 GB |
+| Security | default service account, default access scopes | enough for now; GCS write comes with backup upload |
 
-## S0 demo script
+## Install
+
+SSH in from the console, then:
+
+```bash
+sudo apt-get update && sudo apt-get install -y git
+git clone https://github.com/zhandosayupov/job-pipeline.git /tmp/jp
+sudo bash /tmp/jp/ops/provision.sh
+```
+
+Then add the secrets and the owner id, and start the bot:
+
+```bash
+sudo nano /etc/jobpipe/secrets.env                    # TELEGRAM_BOT_TOKEN=..., GEMINI_API_KEY=...
+sudo nano /var/lib/jobpipe/config/settings.yaml       # telegram.owner_id: <your numeric id>
+sudo systemctl enable --now jobpipe-bot.service
+curl -s localhost:8080/healthz; echo
+```
+
+A shell helper for the owner (put it in `~/.bashrc`):
 
 ```bash
 jp() { sudo -u jobpipe env JOBPIPE_HOME=/var/lib/jobpipe JOBPIPE_SECRETS=/etc/jobpipe/secrets.env \
   /opt/jobpipe/.venv/bin/jobpipe "$@"; }
+```
+
+## Gemini key
+
+Create the key in AI Studio in a project **without** billing: the key list must show "Free tier".
+A project linked to a billing account is on a paid tier and needs a prepaid credit balance; with
+$0 it does not answer. Free-tier prompts may be used for training, hence `trains_on_data: true`.
+
+Model ids change; list them before editing `llm.yaml`:
+
+```bash
+sudo bash -c 'source /etc/jobpipe/secrets.env; printf "url = \"https://generativelanguage.googleapis.com/v1beta/openai/models\"\nsilent\nheader = \"Authorization: Bearer %s\"\n" "$GEMINI_API_KEY" | curl --config -' | grep -o '"id": *"[^"]*flash[^"]*"'
+```
+
+The key goes to curl on stdin (`--config -`; `printf` is a bash builtin), never on its command line,
+where `ps` would show it to other users of the machine. Use the same pattern for any manual check.
+
+On 2026-11-26 `gemini-flash-latest` answered `503 high demand` or timed out, while
+`gemini-flash-lite-latest` answered in about 4 s; the example config tries lite first.
+Check: `jp llm ping`.
+
+## S0 demo
+
+```bash
 jp task add selftest.fail
 # within ~2 minutes: 4 attempts with growing delays, then a dead-letter alert in Telegram
 jp task add selftest.sleep --payload '{"seconds": 120}'
-# wait for the next minute tick, then /pause in Telegram: the run stops in <= 10 s
+# once /status shows it running, send /pause: the reply comes in <= 10 s; then /resume
 ```
 
 ## Operations
 
 * Logs: `journalctl -u jobpipe-bot -u jobpipe-queue -f -o cat` (JSON lines, secrets masked).
-* Update: re-run `provision.sh` (pulls, syncs, reinstalls units, restarts the bot).
+* Update: re-run `sudo bash /tmp/jp/ops/provision.sh` after `git -C /tmp/jp pull` (or a fresh
+  clone). It stops the units, swaps in a fresh root-owned clone, syncs, and starts them again.
 * Backups: `/var/lib/jobpipe/data/backups/`, 7 kept. Off-site upload (age + GCS) is configured with
   `backup.upload_cmd` once the bucket exists.
