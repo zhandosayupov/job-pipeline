@@ -5,6 +5,17 @@ name: Claude Code Review
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review, reopened]
+    # Code changes only; for a docs-only PR, ask with an @claude comment if a review is wanted.
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "tools/**"
+      - "prompts/**"
+      - "config.example/**"
+      - "ops/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/**"
 
 concurrency:
   group: claude-review-${{ github.event.pull_request.number }}
