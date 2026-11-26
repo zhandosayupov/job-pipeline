@@ -1,5 +1,6 @@
 """Regression tests for the PR #1 review findings."""
 import os
+import sqlite3
 import subprocess
 import sys
 
@@ -135,6 +136,21 @@ def test_split_sql_handles_triggers_and_semicolons_in_strings():
 def test_all_migrations_split_cleanly():
     for _, name, sql in available_migrations():
         assert _split_sql(sql), name
+
+
+def test_failed_commit_rolls_back_and_connection_stays_usable(conn):
+    """A COMMIT that fails (here: a deferred foreign key) must not leave the transaction open."""
+    from jobpipe.adapters.storage.db import tx
+
+    conn.execute("CREATE TABLE parent (id INTEGER PRIMARY KEY)")
+    conn.execute("CREATE TABLE child (pid INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED)")
+    with pytest.raises(sqlite3.IntegrityError), tx(conn):
+        conn.execute("INSERT INTO child(pid) VALUES (42)")  # only checked at COMMIT
+    assert not conn.in_transaction
+    assert conn.execute("SELECT COUNT(*) FROM child").fetchone()[0] == 0
+    with tx(conn):  # the next transaction works
+        conn.execute("INSERT INTO parent(id) VALUES (1)")
+    assert conn.execute("SELECT COUNT(*) FROM parent").fetchone()[0] == 1
 
 
 def test_new_database_uses_incremental_auto_vacuum(conn):

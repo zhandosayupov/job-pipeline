@@ -60,8 +60,18 @@ def _parse(schema: type[BaseModel], text: str) -> BaseModel:
         raise _InvalidOutput("no JSON object in reply")
     try:
         return schema.model_validate(json.loads(raw[start : end + 1]))
-    except (json.JSONDecodeError, ValidationError) as e:
-        raise _InvalidOutput(str(e)[:300]) from e
+    except json.JSONDecodeError as e:
+        raise _InvalidOutput(f"not valid JSON: {e.msg} at line {e.lineno} column {e.colno}") from e
+    except ValidationError as e:
+        raise _InvalidOutput(_describe(e)) from e
+
+
+def _describe(e: ValidationError) -> str:
+    """Field paths and error kinds only. Never the offending values: by now they may hold
+    restored personal data, and this text is sent back to the provider in the repair prompt."""
+    parts = [f"{'.'.join(map(str, err['loc'])) or '(root)'}: {err['type']}"
+             for err in e.errors(include_input=False, include_url=False, include_context=False)]
+    return "invalid fields: " + "; ".join(parts)[:300]
 
 
 class Router:

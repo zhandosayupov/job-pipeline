@@ -6,6 +6,17 @@ Self-hosted job search pipeline for one owner. Read `docs/architecture.md` and t
 ## Commands
 - `uv sync` · `uv run pytest -q` · `uv run ruff check .` · `uv run python tools/leak_guard.py --all`
 
+## How to review a PR here
+- Review the PR's **current head**. Run `uv sync`, `uv run pytest -q`, `uv run ruff check .` and
+  `uv run python tools/leak_guard.py --all` yourself and report the results; also read the PR's
+  CI status. Do not ask the author to confirm CI.
+- **Re-check every earlier finding against the current tree before repeating it**, code and docs
+  alike (`docs/adr/`, `docs/architecture.md`, `docs/TODO.md`, `CLAUDE.md`). If a finding asks for
+  documentation, grep the docs first. Report each earlier finding as fixed / still open with the
+  file and line that proves it; never carry one over from a previous comment unverified.
+- Items parked on purpose are listed in `docs/TODO.md`: do not report them as missing.
+- List what you did not read, so the owner knows what the review does not cover.
+
 ## Rules that reviews must enforce
 - **No secrets or personal data in the repo.** Code, prompts, synthetic fixtures and
   `config.example/` only. Personal data lives in `JOBPIPE_HOME`. Flag any real name, email, phone,
@@ -24,7 +35,8 @@ Self-hosted job search pipeline for one owner. Read `docs/architecture.md` and t
   acting and checks the pause flag (`ctx.guard()`). No blind retries of submits or sends.
 - **No bypassing defences.** Captcha, 2FA, 403/429 or robots refusals stop the platform and notify
   the owner. No captcha solvers, proxy rotation or fingerprint spoofing.
-- **Unknown stays null.** Never infer salary, visa or remote eligibility.
+- **Unknown stays null.** Never infer a posting's salary, visa sponsorship or remote eligibility
+  (e.g. from company reputation). The owner's own visa answer is derived from config (ADR 0016).
 - **State changes** go through `services.events.transition()` so every change has an event row.
 - **Tests**: every pure module has unit tests; HTTP goes through `httpx.MockTransport` with
   recorded fixtures; no network in the default test run.

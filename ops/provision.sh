@@ -57,9 +57,18 @@ fi
 log "code in $APP_DIR ($BRANCH): fresh root-owned clone"
 # Never run git as root inside the old checkout: its .git could have been tampered with.
 NEW_DIR=$(mktemp -d /opt/jobpipe.new.XXXXXX)
+trap 'rm -rf -- "$NEW_DIR"' EXIT          # a failed clone leaves no stray directory behind
 git clone --quiet --depth 1 --branch "$BRANCH" "$REPO_URL" "$NEW_DIR"
 chown -R root:root "$NEW_DIR"
 chmod -R u+rwX,go+rX,go-w "$NEW_DIR"     # mktemp makes 0700: open read access, no write for others
+
+# Nothing may start from /opt/jobpipe while it is being swapped and re-synced.
+# Stopping the queue unit waits for a running queue pass to end (SIGTERM, then the kill timeout).
+log "stopping jobpipe units for the swap"
+systemctl stop jobpipe-queue.timer jobpipe-backup.timer jobpipe-retention.timer 2>/dev/null || true
+systemctl stop jobpipe-queue.service jobpipe-backup.service jobpipe-retention.service \
+  jobpipe-bot.service 2>/dev/null || true
+
 if [[ -e $APP_DIR ]]; then
   rm -rf -- "$APP_DIR.old"
   mv -- "$APP_DIR" "$APP_DIR.old"

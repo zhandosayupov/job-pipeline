@@ -159,6 +159,22 @@ def test_personal_skips_training_provider_and_redacts(conn, clock, prompts):
     assert res.data.echo == "Jane Doe"
 
 
+def test_repair_prompt_never_carries_restored_personal_data(conn, clock, prompts):
+    """The invalid field holds a pseudonym; after restore it is the real name. The repair
+    message sent back to the provider must not contain it (review of PR #1)."""
+    bad = LLMResponse('{"ok": "{{NAME}}", "echo": "{{NAME}}"}')
+    good = LLMResponse('{"ok": true, "echo": "{{NAME}}"}')
+    router, t, _ = make(conn, clock, prompts, {"b": [bad, good]}, chain=("b",),
+                        pii_values={"NAME": ["Jane Doe"]})
+    res = router.complete("ping", {"word": "Jane Doe"}, schema=Out, personal=True)
+    assert res.data.echo == "Jane Doe"
+    for _, request in t.calls:
+        for m in request.messages:
+            assert "Jane" not in m["content"], m
+    repair = t.calls[1][1].messages[-1]["content"]
+    assert "ok: bool_parsing" in repair
+
+
 def test_missing_key_is_skipped(conn, clock, prompts):
     cfg = LLMConfig(providers=PROVIDERS, tasks={"ping": LLMTask(chain=["a", "b"])})
     t = ScriptedTransport({"b": [OK]})

@@ -10,6 +10,20 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
   to a market-based answer instead of asking the owner every time. Until then: always ask
   (ADR 0016), or `posting_range` for postings that publish a range.
 
+## Production
+
+- **Production checks that alert when something breaks.** Unit tests only cover the code; on the
+  VM we also need scheduled checks with a Telegram alert on failure, for example an hourly
+  `jobpipe selfcheck`: database writable and migrations current, queue moving (no task overdue
+  for long), every timer ran on schedule, backup from last night exists and passes
+  `integrity_check`, a daily LLM ping per enabled provider, each source fetched recently, the
+  laptop worker's last heartbeat. Plus an external dead-man's switch (an outside service that
+  alerts if the VM stops checking in), because a dead VM cannot send its own alert.
+- **`uv sync` runs as root during provisioning.** It builds the project from `pyproject.toml`,
+  so a build backend from the cloned repo runs as root. Fine while the repo is ours; harden later
+  by deploying a pinned commit or signed tag instead of a branch head, and note it in
+  `docs/infra.md`.
+
 ## Tooling
 
 - **Security review workflow** (`anthropics/claude-code-security-review`): needs an Anthropic API

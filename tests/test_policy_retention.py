@@ -193,6 +193,24 @@ def test_retention_deletes_and_compacts(conn, clock, queue_cfg):
     assert run_retention(conn, clock, cfg)["jobs_compacted"] == 0  # idempotent
 
 
+def test_llm_daily_merges_a_day_split_across_two_retention_runs(conn, clock):
+    """The cutoff can fall in the middle of a day: the morning is rolled up one night and the
+    evening the next. Both must land in the same llm_daily row (ON CONFLICT path)."""
+    insert = ("INSERT INTO llm_calls(ts, task, provider, model, prompt_version, status, tokens_in, tokens_out, "
+              "cost_usd) VALUES (?, 'label', 'gemini', 'm', 'v1', ?, ?, ?, ?)")
+    conn.execute(insert, ("2026-10-01T06:00:00.000000Z", "ok", 100, 10, 0.5))
+    conn.execute(insert, ("2026-10-01T18:00:00.000000Z", "error", 50, 0, 0.25))
+    cfg = RetentionCfg(llm_calls_days=35)
+    clock.set(clock.now().replace(year=2026, month=11, day=5, hour=12))     # cutoff 2026-10-01 12:00
+    first = run_retention(conn, clock, cfg)
+    assert first["llm_calls"] == 1
+    clock.advance(86400)                                                    # cutoff moves past 18:00
+    second = run_retention(conn, clock, cfg)
+    assert second["llm_calls"] == 1
+    rows = conn.execute("SELECT day, calls, ok, tokens_in, tokens_out, cost_usd FROM llm_daily").fetchall()
+    assert [tuple(r) for r in rows] == [("2026-10-01", 2, 1, 150, 10, 0.75)]
+
+
 def test_compaction_marker_does_not_depend_on_json_formatting(conn, clock):
     _job(conn, clock, "j", ["dropped"], {})
     conn.execute("""UPDATE jobs SET data_json = '{"compacted":true,"resolution":"dropped"}' WHERE id = 'j'""")

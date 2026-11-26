@@ -4,7 +4,7 @@ from __future__ import annotations
 import re
 import sqlite3
 from collections.abc import Iterator
-from contextlib import contextmanager
+from contextlib import contextmanager, suppress
 from importlib import resources
 from pathlib import Path
 
@@ -30,14 +30,23 @@ def connect(path: Path | str) -> sqlite3.Connection:
 
 @contextmanager
 def tx(conn: sqlite3.Connection) -> Iterator[sqlite3.Connection]:
-    """BEGIN IMMEDIATE ... COMMIT; rollback on any exception. Not reentrant."""
+    """BEGIN IMMEDIATE ... COMMIT; rollback on any exception, including a failed COMMIT
+    (SQLITE_BUSY, disk full, deferred constraint), so the connection is never left inside an
+    open transaction that would make the next BEGIN fail. Not reentrant."""
     conn.execute("BEGIN IMMEDIATE")
     try:
         yield conn
+        conn.execute("COMMIT")
     except BaseException:
-        conn.execute("ROLLBACK")
+        _rollback_quietly(conn)
         raise
-    conn.execute("COMMIT")
+
+
+def _rollback_quietly(conn: sqlite3.Connection) -> None:
+    # SQLite may already have rolled back on its own; the original error matters more.
+    if conn.in_transaction:
+        with suppress(sqlite3.Error):
+            conn.execute("ROLLBACK")
 
 
 def available_migrations() -> list[tuple[int, str, str]]:
