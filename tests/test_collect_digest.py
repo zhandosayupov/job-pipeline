@@ -267,3 +267,39 @@ def test_digest_groups_the_same_role_across_locations(setup, clock):
     text = "\n".join(d.messages)
     assert text.count("think-cell — C++ Developer") == 1
     assert "ещё 2:" in text and len(d.job_ids) == 3
+
+
+def test_block_alerts_at_once_and_only_once(setup):
+    _conn, notifier, make = setup
+    blocked = FetchOutcome(blocked=["q: HTTP 403"])
+    Script.outcomes = {"hh": [blocked, blocked, FetchOutcome()]}
+    c = make("hh", alert_after=3)
+    c.run()
+    assert len(notifier.messages) == 1 and "заблокировал" in notifier.messages[0]
+    c.run()
+    assert len(notifier.messages) == 1                     # still blocked: no repeat
+
+
+def test_unit_names_with_underscores_do_not_close_other_units(setup):
+    conn, _, make = setup
+    a = posting(source="gh", jid="acme_inc:1")
+    b = posting(source="gh", jid="acmeXinc:2", title="Go Developer")   # LIKE 'gh:acme_inc:%' would match it
+    Script.outcomes = {"gh": [FetchOutcome(postings=[a, b]),
+                              FetchOutcome(postings=[a], complete_ids={"gh:acme_inc": {"gh:acme_inc:1"}})]}
+    c = make("gh")
+    c.run()
+    c.run()
+    assert states(conn)["gh:acmeXinc:2"][0] == "prefiltered"
+
+
+def test_job_stuck_in_discovered_is_swept(setup, clock):
+    from jobpipe.services.events import create_entity
+
+    conn, _, make = setup
+    create_entity(conn, clock, "job", "fake:9", columns={"source": "fake", "kind": "aggregator", "company": "Acme",
+                                                       "title": "C++ Engineer", "url": "https://x/9",
+                                                       "fingerprint": "fp9"},
+                  data={"description": "Low latency C++."})
+    Script.outcomes = {"fake": [FetchOutcome()]}
+    make("fake").run()
+    assert states(conn)["fake:9"][0] == "prefiltered"
