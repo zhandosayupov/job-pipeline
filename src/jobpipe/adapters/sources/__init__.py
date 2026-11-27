@@ -9,6 +9,7 @@ from .ats import Ashby, Greenhouse, Lever, Workable
 from .base import FetchOutcome, Source, SourceContext
 from .careers import CareerSites, Workday
 from .community import HackerNews, TelegramChannels
+from .russian import HabrCareer, HeadHunter
 
 SOURCES: dict[str, type] = {
     cls.name: cls
@@ -26,6 +27,8 @@ SOURCES: dict[str, type] = {
         TelegramChannels,
         CareerSites,
         Workday,
+        HabrCareer,
+        HeadHunter,
     )
 }
 ATS_SOURCES = {"greenhouse", "ashby", "lever", "workable"}  # driven by companies.yaml

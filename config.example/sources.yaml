@@ -70,3 +70,14 @@ sources:
       queries: ["c++", "low latency"]
       tenants:
         - {company: NVIDIA, host: nvidia.wd5.myworkdayjobs.com, tenant: nvidia, site: NVIDIAExternalCareerSite, limit: 20}
+
+  # Habr Career (S8): the search page's own JSON state. Only a published salary is kept.
+  habr:
+    enabled: true
+    params: {queries: ["c++", "backend", "low latency"], max_pages: 2}
+
+  # hh.kz / hh.ru official API (S8). hh requires HH-User-Agent with a real contact: put yours in
+  # your private copy, e.g. contact: "jobpipe/0.1 (you@yourmail)". Areas: kz, ru, by, uz.
+  hh:
+    enabled: false
+    params: {contact: null, areas: [kz], queries: ["c++", "backend"], per_page: 50, max_pages: 3, period_days: 7}
