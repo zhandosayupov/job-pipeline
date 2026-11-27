@@ -82,12 +82,12 @@ def cmd_init(cfg: AppConfig, args) -> int:
         if not dst.exists():
             shutil.copyfile(src, dst)
             print(f"created {dst}")
-    secrets = home / "secrets.env"
-    if not secrets.exists() and not Path("/etc/jobpipe/secrets.env").exists():
-        shutil.copyfile(REPO_ROOT / "ops" / "secrets.env.example", secrets)
+    env_file = home / "secrets.env"      # only its path is printed, never its content
+    if not env_file.exists() and not Path("/etc/jobpipe/secrets.env").exists():
+        shutil.copyfile(REPO_ROOT / "ops" / "secrets.env.example", env_file)
         if os.name != "nt":
-            secrets.chmod(0o600)
-        print(f"created {secrets} (fill it in; never commit it)")
+            env_file.chmod(0o600)
+        print(f"created {env_file.name} in {home} (fill it in; never commit it)")
     guard = home / "leakguard.txt"
     if not guard.exists():
         guard.write_text("# One private string per line (email, phone, full name). Blocks commits.\n",
