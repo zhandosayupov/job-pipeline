@@ -55,15 +55,20 @@ class SubmitResult(BaseModel):
     new_fields: list[FormField] = Field(default_factory=list)
 
 
+def _on(host: str, *domains: str) -> bool:
+    """host is one of the domains or a subdomain of one: exact labels, never a substring (CodeQL)."""
+    return any(host == d or host.endswith("." + d) for d in domains)
+
+
 def platform_of(url: str, source: str | None = None) -> str | None:
     host = (urlsplit(url).hostname or "").lower()
-    if "greenhouse.io" in host:
+    if _on(host, "greenhouse.io"):
         return "greenhouse"
-    if host.endswith("jobs.lever.co"):
+    if _on(host, "jobs.lever.co"):
         return "lever"
-    if host.endswith("ashbyhq.com"):
+    if _on(host, "ashbyhq.com"):
         return "ashby"
-    if host.endswith(("hh.kz", "hh.ru")) or host.endswith(".hh.kz"):
+    if _on(host, "hh.kz", "hh.ru"):
         return "hh"
     return source if source in {"greenhouse", "lever", "ashby"} else None
 
