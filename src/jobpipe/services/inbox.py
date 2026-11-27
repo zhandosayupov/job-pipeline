@@ -37,7 +37,7 @@ from . import triage as tr
 from .events import create_entity, record_event, transition
 from .kb import KnowledgeBase
 from .llm_router import LLMUnavailable
-from .policy import Route, decide_message
+from .policy import Decision, Route, decide_message
 from .queue import Queue
 from .text import norm_company
 
@@ -417,6 +417,11 @@ def make_draft(conn, clock, cfg: AppConfig, kb: KnowledgeBase, router, notifier:
     transition(conn, clock, "conversation", conv_id, "draft_ready", actor="inbox",
                data={"n": n, "category": t.category, "topics": sorted(d.topics)})
     decision = decide_message(cfg.policy, "reply", d.topics)
+    if decision.route is Route.SUBMIT:
+        clean, _ = clean_approvals(conn)
+        if clean < cfg.policy.l2_min_clean_approvals:   # L2 is earned: drafts sent unedited first
+            decision = Decision(Route.ASK, [f"L2 for replies needs {cfg.policy.l2_min_clean_approvals} drafts sent "
+                                            f"unedited, so far {clean}"])
     if decision.route is Route.SUBMIT and d.ok and not d.placeholders and not web_only:
         msg = approve(conn, clock, queue, conv_id, actor="policy")
         notifier.send(f"📥 {_title(conn, conv['application_id'], m)}: черновик ответа кладу в черновики "

@@ -73,13 +73,27 @@ if [[ -e $APP_DIR ]]; then
   mv -- "$APP_DIR" "$APP_DIR.old"
 fi
 mv -- "$NEW_DIR" "$APP_DIR"
-rm -rf -- "$APP_DIR.old"
+# The old tree (with its working .venv) stays until the new one is synced, so a failed sync can
+# be rolled back: the previous code comes back and its units start again.
+rollback() {
+  echo "sync failed: restoring the previous version" >&2
+  if [[ -d $APP_DIR.old ]]; then
+    rm -rf -- "$APP_DIR.failed"
+    mv -- "$APP_DIR" "$APP_DIR.failed"      # kept for debugging; the next provision replaces it
+    mv -- "$APP_DIR.old" "$APP_DIR"
+    systemctl start 'jobpipe-*.timer' 2>/dev/null || true
+    systemctl start jobpipe-bot.service 2>/dev/null || true
+  fi
+  exit 1
+}
 
 log "python runtime and env (root-owned)"
 install -d -m 755 -o root -g root "$PY_DIR" "$UV_CACHE_DIR"
 rm -rf -- "$HOME_DIR/.uv-python" "$HOME_DIR/.uv-cache"   # left by older versions of this script
 env UV_PYTHON_INSTALL_DIR="$PY_DIR" UV_CACHE_DIR="$UV_CACHE_DIR" \
-  "$UV" sync --project "$APP_DIR" --locked --no-dev --python "$PYTHON_VERSION" --quiet
+  "$UV" sync --project "$APP_DIR" --locked --no-dev --python "$PYTHON_VERSION" --quiet || rollback
+"$APP_DIR/.venv/bin/jobpipe" --help >/dev/null || rollback     # the new entry point must at least start
+rm -rf -- "$APP_DIR.old"
 chmod -R go-w "$APP_DIR/.venv" "$PY_DIR"
 if sudo -u "$SVC_USER" test -w "$APP_DIR" || sudo -u "$SVC_USER" test -w "$APP_DIR/.venv/bin" \
    || sudo -u "$SVC_USER" test -w "$PY_DIR"; then

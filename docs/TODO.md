@@ -75,21 +75,13 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
 
 ## Production
 
-- **Production checks that alert when something breaks.** Unit tests only cover the code; on the
-  VM we also need scheduled checks with a Telegram alert on failure, for example an hourly
-  `jobpipe selfcheck`: database writable and migrations current, queue moving (no task overdue
-  for long), every timer ran on schedule, backup from last night exists and passes
-  `integrity_check`, a daily LLM ping per enabled provider, each source fetched recently, the
-  laptop worker's last heartbeat. Plus an external dead-man's switch (an outside service that
-  alerts if the VM stops checking in), because a dead VM cannot send its own alert.
+- ~~Production checks~~: done in S6 (`jobpipe selfcheck`, ADR 0024). Still open: a daily LLM ping per
+  provider inside selfcheck.
 - **`uv sync` runs as root during provisioning.** It builds the project from `pyproject.toml`,
   so a build backend from the cloned repo runs as root. Fine while the repo is ours; harden later
   by deploying a pinned commit or signed tag instead of a branch head, and note it in
   `docs/infra.md`.
-- **Rollback copy during provisioning.** `provision.sh` deletes `/opt/jobpipe.old` right after the
-  swap, before `uv sync` of the new tree has passed, so a failed sync leaves nothing to roll back
-  to. Keep the old tree until the sync (and ideally a `/healthz` check) succeeds, and restore it
-  plus restart the units if they fail.
+- ~~Rollback copy during provisioning~~: done in S6 (the old tree stays until `uv sync` passes).
 
 ## Doc nits
 
