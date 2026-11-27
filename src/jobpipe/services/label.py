@@ -103,12 +103,12 @@ def verify(label: JobLabel, text: str, posted_at: str | None, now: datetime) -> 
     out["score"] = sum(b.values())
     if not evidence_ok(label.visa_evidence, text):
         out["visa_evidence"] = None
-        if label.visa in ("explicit", "no"):
+        if label.visa != "unknown":           # every visa claim needs a quote, not only the strong ones
             out["visa"] = "unknown"
             out["unverified"] = [*out.get("unverified", []), "visa"]
     if not evidence_ok(label.remote_evidence, text):
         out["remote_evidence"] = None
-        if label.remote_scope in ("kz", "worldwide"):
+        if label.remote_scope not in ("unknown", "n/a"):
             out["remote_scope"] = "unknown"
             out["unverified"] = [*out.get("unverified", []), "remote_scope"]
     return out
