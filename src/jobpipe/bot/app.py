@@ -227,7 +227,7 @@ class BotService:
         from ..services.inbox import fill_pending
 
         with self._conn() as conn:
-            return fill_pending(conn)
+            return fill_pending(conn, self.clock)
 
     def fill(self, text: str):
         from ..services.inbox import fill_next

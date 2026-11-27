@@ -536,7 +536,7 @@ def message_decision(conn: sqlite3.Connection, clock: Clock, queue: Queue, actio
     if action == "fill":
         if not d.get("placeholders"):
             return "Заполнять нечего."
-        control.set_flag(conn, clock, FILL_FLAG, str(rowid), actor="owner")
+        control.set_flag(conn, clock, FILL_FLAG, f"{rowid}|{iso(clock.now())}", actor="owner")
         return f"Напиши следующим сообщением: {d['placeholders'][0][9:-2]}. (/cancel — передумал)"
     if action == "no":
         _walk(conn, clock, conv["id"], ["triaged", "waiting"], data={"declined": d.get("n")}, actor="owner")
@@ -727,10 +727,21 @@ def remind(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, notifier: Not
                             arts = json.loads(j["data_json"] or "{}").get("artifacts", {})
                             if arts.get("pdf") or arts.get("tex"):
                                 lines.append(f"Отправленное CV: {arts.get('pdf') or arts.get('tex')}")
-                    if notifier.send("\n".join(lines)):
+                    # at most once, also when the inbox run and the hourly selfcheck overlap (S7 review)
+                    key = f"remind:{conv['id']}:{iv['start']}:{tag}"
+                    se = control.SideEffects(conn, clock)
+                    if control.is_paused(conn) or not se.plan(key, "reminder"):
                         iv["reminded"].append(tag)
                         changed = True
-                        sent += 1
+                        continue
+                    ok = notifier.send("\n".join(lines))
+                    se.mark(key, "done" if ok else "failed")
+                    if not ok:
+                        se.resolve(key, "reset", actor="inbox")    # not delivered: try again next run
+                        continue
+                    iv["reminded"].append(tag)
+                    changed = True
+                    sent += 1
         if changed:
             _save_conv(conn, conv["id"], data)
     return sent
@@ -773,15 +784,34 @@ def whatsapp_inbound(conn, clock, cfg: AppConfig, queue: Queue, raw: str) -> str
 FILL_FLAG = "inbox.fill_pending"
 
 
-def fill_pending(conn) -> bool:
-    return bool(control.get_flag(conn, FILL_FLAG))
+FILL_TTL_S = 600
+
+
+def _pending(conn, clock) -> str | None:
+    """rowid of the draft waiting for a value; the request expires after 10 minutes (S7 review)."""
+    from datetime import datetime as _dt
+
+    raw = control.get_flag(conn, FILL_FLAG) or ""
+    rowid, _, at = raw.partition("|")
+    if not rowid or not at:
+        return None
+    age = (clock.now() - _dt.fromisoformat(at.replace("Z", "+00:00"))).total_seconds()
+    return rowid if age <= FILL_TTL_S else None
+
+
+def fill_pending(conn, clock=None) -> bool:
+    from ..clock import SystemClock
+
+    return _pending(conn, clock or SystemClock()) is not None
 
 
 def fill_next(conn, clock, text: str) -> tuple[str, list | None]:
     """The owner's next plain message replaces the first placeholder of the pending draft. It is the
     owner's own text, so it is not truth-gated; the updated card comes back with its buttons."""
-    rowid = control.get_flag(conn, FILL_FLAG)
+    rowid = _pending(conn, clock)
     control.set_flag(conn, clock, FILL_FLAG, "", actor="owner")
+    if rowid is None:
+        return "Запрос на заполнение истёк: нажми «✍️ Заполнить» ещё раз.", None
     if text.strip() in ("/cancel", "отмена"):
         return "Ок, не заполняю.", None
     conv = conn.execute("SELECT rowid, * FROM conversations WHERE rowid = ?", (int(rowid),)).fetchone()

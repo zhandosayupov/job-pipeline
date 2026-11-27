@@ -89,9 +89,13 @@ def parse_ics(text: str, default_tz: str = "Asia/Almaty") -> list[Event]:
 
 
 def free_slots(busy: list[Event], now: datetime, *, tz: str = "Asia/Almaty", days: int = 5, start_h: int = 10,
-               end_h: int = 19, length_min: int = 60, count: int = 3, lead_h: int = 18) -> list[datetime]:
-    """Up to `count` free slots on working days, at most one per day, not before now + lead_h."""
+               end_h: int = 19, length_min: int = 60, count: int = 3, lead_h: int = 18,
+               their_tz: str | None = None) -> list[datetime]:
+    """Up to `count` free slots on working days, at most one per day, not before now + lead_h.
+    With `their_tz`, hours that fall in 09:00-18:00 for the recruiter come first (S7 review: 10:00 in
+    Almaty is 06:00 in Berlin); a day with no such hour falls back to the owner's first free hour."""
     zone = ZoneInfo(tz)
+    theirs = ZoneInfo(their_tz) if their_tz and their_tz != tz else None
     out: list[datetime] = []
     earliest = now + timedelta(hours=lead_h)
     day: date = now.astimezone(zone).date()
@@ -101,14 +105,18 @@ def free_slots(busy: list[Event], now: datetime, *, tz: str = "Asia/Almaty", day
         if day.weekday() >= 5:
             continue
         checked += 1
+        free = []
         for h in range(start_h, end_h):
             s = datetime.combine(day, time(h), zone).astimezone(UTC)
             e = s + timedelta(minutes=length_min)
             if s < earliest or e > datetime.combine(day, time(end_h), zone).astimezone(UTC):
                 continue
             if all(e <= b.start or s >= b.end for b in busy):
-                out.append(s)
-                break
+                free.append(s)
+        if free:
+            good = [s for s in free if theirs and s.astimezone(theirs).hour >= 9
+                    and (s + timedelta(minutes=length_min)).astimezone(theirs).hour <= 18]
+            out.append((good or free)[0])
     return out
 
 
@@ -124,7 +132,9 @@ def format_slots(slots: list[datetime], *, own_tz: str, their_country: str | Non
             t = s.astimezone(ZoneInfo(their))
             label = f"{t:%a %d %b %H:%M} ({their.split('/')[-1].replace('_', ' ')}) / {own}"
         else:
-            label = f"{mine:%a %d %b} {own} (UTC{mine:%z}"[:-2] + ")"
+            off = int(mine.utcoffset().total_seconds() // 60)
+            sign, off = ("+" if off >= 0 else "-"), abs(off)
+            label = f"{mine:%a %d %b} {own} (UTC{sign}{off // 60:02d}" + (f":{off % 60:02d})" if off % 60 else ")")
         lines.append(label)
     return lines
 
@@ -168,5 +178,5 @@ def slot_lines(url: str | None, now: datetime, *, tz: str, country: str | None, 
     busy = load_busy(url, tz)
     if busy is None:
         return None
-    slots = free_slots(busy, now, tz=tz)
+    slots = free_slots(busy, now, tz=tz, their_tz=COUNTRY_TZ.get((country or "").upper()))
     return format_slots(slots, own_tz=tz, their_country=country, lang=lang) or None

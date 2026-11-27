@@ -142,10 +142,10 @@ def test_fill_placeholder_from_telegram(env, app_cfg, clock):
     text = ""
     while "Всё заполнено" not in text:
         prompt = ib.message_decision(conn, clock, q, "fill", conv["rowid"])
-        assert ib.fill_pending(conn)
+        assert ib.fill_pending(conn, clock)
         value = next(v for k, v in values.items() if k in prompt)
         text, buttons = ib.fill_next(conn, clock, value)
-    assert "5000 EUR gross per month." in text and not ib.fill_pending(conn)
+    assert "5000 EUR gross per month." in text and not ib.fill_pending(conn, clock)
     assert not any(d.startswith("m:fill") for row in buttons for _, d in row)
     ib.message_decision(conn, clock, q, "ok", conv["rowid"])
     Runner(conn, clock, app_cfg, HANDLERS, n, services={"kb": lambda: KB, "router": lambda: None,
@@ -198,3 +198,35 @@ def test_daily_llm_ping_runs_once_a_day(app_cfg, clock):
             calls.append(task)
 
     assert selfcheck.llm_check(conn, clock, lambda: Up()).ok and len(calls) == 2
+
+
+def test_slots_prefer_the_recruiters_working_hours():
+    berlin = cal.free_slots(cal.parse_ics(ICS), NOW, their_tz="Europe/Berlin")
+    from zoneinfo import ZoneInfo
+
+    assert all(9 <= s.astimezone(ZoneInfo("Europe/Berlin")).hour <= 17 for s in berlin)
+    assert berlin[1] == datetime(2026, 12, 2, 8, 0, tzinfo=UTC)          # 13:00 Almaty = 09:00 Berlin
+
+
+def test_fill_request_expires(env, app_cfg, clock):
+    conn, _app, mb, n, q = env
+    mb.add("inbox", "screening.eml", "T3")
+    run(conn, clock, app_cfg, mb, n, q)
+    rowid = conn.execute("SELECT rowid FROM conversations").fetchone()[0]
+    ib.message_decision(conn, clock, q, "fill", rowid)
+    assert ib.fill_pending(conn, clock)
+    clock.advance(11 * 60)
+    assert not ib.fill_pending(conn, clock)
+    assert "истёк" in ib.fill_next(conn, clock, "late text")[0]
+
+
+def test_overlapping_reminder_runs_send_once(env, app_cfg, clock):
+    conn, _app, mb, n, q = env
+    mb.add("inbox", "invite_ics.eml", "T1")
+    run(conn, clock, app_cfg, mb, n, q)
+    clock.advance(4 * 86400 + 4 * 3600)
+    conv = conn.execute("SELECT id, data_json FROM conversations").fetchone()
+    stale = conv["data_json"]                                        # a second run read the row before the first
+    assert ib.remind(conn, clock, app_cfg, n) == 1
+    conn.execute("UPDATE conversations SET data_json = ? WHERE id = ?", (stale, conv["id"]))
+    assert ib.remind(conn, clock, app_cfg, n) == 0                   # the key holds
