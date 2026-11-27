@@ -110,8 +110,32 @@ def _integrity(path: Path) -> bool:
         return False
 
 
-def run(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, notifier: Notifier, ping=None) -> list[Check]:
+def llm_check(conn: sqlite3.Connection, clock: Clock, router_factory) -> Check | None:
+    """Once a day: one `ping` through the router, so a dead key or quota shows before labeling fails.
+    Between pings the last result stands (no quota spent every hour)."""
+    from .llm_router import LLMUnavailable
+
+    day = clock.now().date().isoformat()
+    last = control.get_flag(conn, "selfcheck.llm_last") or ""
+    if last.startswith(day + " "):
+        ok = last.endswith(" ok")
+        return Check("llm", ok, "" if ok else "no LLM provider answered the daily ping (see /status)")
+    try:
+        router_factory().complete("ping", {"word": "selfcheck"})
+        result = "ok"
+    except (LLMUnavailable, ValueError):
+        result = "fail"
+    control.set_flag(conn, clock, "selfcheck.llm_last", f"{day} {result}", actor="selfcheck")
+    return Check("llm", result == "ok", "" if result == "ok" else "no LLM provider answered the daily ping")
+
+
+def run(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, notifier: Notifier, ping=None,
+        router_factory=None) -> list[Check]:
     checks = gather(conn, clock, cfg)
+    if router_factory is not None and cfg.llm.tasks.get("ping"):
+        c = llm_check(conn, clock, router_factory)
+        if c:
+            checks.append(c)
     for c in checks:
         flag = f"selfcheck.{c.name}"
         was_failing = control.get_flag(conn, flag) == "fail"

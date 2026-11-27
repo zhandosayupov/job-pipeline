@@ -31,6 +31,7 @@ from ..domain import states
 from ..domain.job import Posting
 from ..domain.message import InMessage
 from ..ports.notifier import Notifier
+from . import calendar as cal
 from . import control
 from . import reply as replymod
 from . import triage as tr
@@ -60,6 +61,7 @@ class InboxResult:
     drafts: int = 0
     postings: int = 0
     ghosted: int = 0
+    reminders: int = 0
     errors: int = 0
 
 
@@ -154,7 +156,7 @@ def store(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, m: InMessage, 
                       data={"subject": m.subject, "counterpart": m.from_addr, "name": m.from_name,
                             "link_ambiguous": ambiguous})
     data = {"to": m.to, "in_reply_to": m.in_reply_to, "references": m.references, "links": m.links[:200],
-            "auto": m.auto}
+            "auto": m.auto, "invites": m.invites[:3]}
     conn.execute(
         "INSERT INTO messages(id, conversation_id, channel, direction, ext_id, thread_key, from_addr, from_name, "
         "subject, ts, body, data_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -170,7 +172,7 @@ def _message(row: sqlite3.Row) -> InMessage:
                      from_name=row["from_name"] or "", to=d.get("to", []), subject=row["subject"] or "",
                      text=row["body"], links=[tuple(x) for x in d.get("links", [])], in_reply_to=d.get("in_reply_to"),
                      references=d.get("references", []), thread_key=row["thread_key"], direction=row["direction"],
-                     auto=d.get("auto", False))
+                     auto=d.get("auto", False), invites=d.get("invites", []))
 
 
 # --- state helpers -------------------------------------------------------------------------
@@ -337,6 +339,13 @@ def _process_one(conn, clock, cfg, kb, router, notifier, queue, row, m: InMessag
     conv = _conv(conn, conv_id)
     app_id = conv["application_id"]
     title = _title(conn, app_id, m)
+    if m.invites:
+        recorded = record_invites(conn, clock, cfg, conv_id, app_id, m)
+        if recorded:
+            notifier.send(f"📅 {title}: приглашение в календаре — " + "; ".join(recorded)
+                          + "\nПринять или перенести — в календаре/письме, сам. Напомню за сутки и за час.")
+            if t.category not in tr.NEEDS_REPLY:
+                t.category = "invite"
     target = {"rejection": "rejected", "invite": "interview", "screening_question": "screening",
               "info_request": "replied", "ack": "applied"}.get(t.category)
     if app_id and target:
@@ -399,10 +408,16 @@ def make_draft(conn, clock, cfg: AppConfig, kb: KnowledgeBase, router, notifier:
     if conv["application_id"]:
         job = conn.execute("SELECT j.* FROM applications a JOIN jobs j ON j.id = a.job_id WHERE a.id = ?",
                            (conv["application_id"],)).fetchone()
+    slots = None
+    if t.category == "invite" or "interview_scheduling" in t.topics:
+        slots = cal.slot_lines(cfg.secrets.get("CALENDAR_ICS_URL"), clock.now(), tz=cfg.settings.timezone,
+                               country=job["country"] if job else None,
+                               lang=replymod.lang_of(f"{m.subject}\n{m.text}"))
     d = replymod.build(kb, cfg.policy, router, message=m.text, subject=m.subject, to_name=m.from_name,
                        category=t.category, questions=t.questions, topics=t.topics,
                        company=job["company"] if job else None, job_title=job["title"] if job else None,
-                       job_country=job["country"] if job else None)
+                       job_country=job["country"] if job else None, slots=slots)
+    booking = cal.booking_links(m.text, m.links)
     data = json.loads(conv["data_json"] or "{}")
     n = int(data.get("drafts", 0)) + 1
     web_only = m.channel == "gmail" and bool(NO_REPLY.search(m.from_addr))
@@ -411,7 +426,7 @@ def make_draft(conn, clock, cfg: AppConfig, kb: KnowledgeBase, router, notifier:
         "topics": sorted(d.topics), "generated": d.generated, "notes": d.notes, "category": t.category,
         "reply_to": {"ext_id": m.ext_id, "references": m.references, "addr": m.from_addr, "subject": m.subject,
                      "thread_key": m.thread_key},
-        "web_only": web_only,
+        "web_only": web_only, "booking": booking, "slots": slots or [],
         "unmatched": [f"{c.kind} «{c.text}»" for c in (d.truth.unmatched if d.truth else [])]}})
     _save_conv(conn, conv_id, data)
     transition(conn, clock, "conversation", conv_id, "draft_ready", actor="inbox",
@@ -450,6 +465,10 @@ def card_text(conn, conv_id: str, m: InMessage, t: tr.Triage, reasons: list[str]
     if not d["ok"]:
         lines.append("⛔ Проверка правды: утверждения без факта в базе — " + "; ".join(d["unmatched"][:6])
                      + ". Такой черновик не отправить: «Переделать» или ответь сам.")
+    if d.get("booking"):
+        lines.append("📅 Ссылка для записи (бронируешь сам): " + " ".join(d["booking"][:3]))
+    if d.get("slots"):
+        lines.append("🗓 Окна взяты из твоего календаря (iCal); проверь перед отправкой.")
     if d["web_only"]:
         lines.append("ℹ️ Адрес no-reply: ответ — на сайте/в ЛК (ссылки в письме), текст можно скопировать.")
     for n in d["notes"]:
@@ -465,8 +484,11 @@ def card_buttons(conn, conv_id: str) -> list[list[tuple[str, str]]]:
     rid = conv["rowid"]
     rows = []
     if d["ok"] and not d["web_only"]:
-        label = "📝 Черновиком в Telegram" if conv["channel"] == "telegram" else "📥 В черновики Gmail"
+        label = {"telegram": "📝 Черновиком в Telegram", "whatsapp": "💬 Ссылка для WhatsApp"}.get(
+            conv["channel"], "📥 В черновики Gmail")
         rows.append([(label, f"m:ok:{rid}")])
+    if d.get("placeholders"):
+        rows.append([("✍️ Заполнить " + d["placeholders"][0][9:-2][:30], f"m:fill:{rid}")])
     rows.append([("🔁 Переделать", f"m:redo:{rid}"),
                  ("✅ Ответил сам" if d["web_only"] else "🙅 Не отвечать", f"m:no:{rid}")])
     return rows
@@ -483,6 +505,11 @@ def approve(conn, clock, queue: Queue, conv_id: str, actor: str = "owner") -> st
     key = f"draft:{conv_id}:{d['n']}"
     transition(conn, clock, "conversation", conv_id, "approved", expected="draft_ready", actor=actor,
                data={"n": d["n"]})
+    if conv["channel"] == "whatsapp":
+        # No WhatsApp API for personal chats: the owner opens the link, WhatsApp shows the text, they send.
+        _walk(conn, clock, conv_id, ["sent", "waiting"], data={"via": "wa.me link"}, actor=actor)
+        return "Открой ссылку — WhatsApp подставит текст, отправишь сам:\n" + wa_link(
+            d["reply_to"].get("thread_key"), d["text"])
     task_type = TG_DRAFT if conv["channel"] == "telegram" else DRAFT
     queue.enqueue(task_type, {"conv_id": conv_id, "key": key}, idempotency_key=key, max_attempts=3)
     if conv["channel"] == "telegram":
@@ -506,6 +533,11 @@ def message_decision(conn: sqlite3.Connection, clock: Clock, queue: Queue, actio
         _walk(conn, clock, conv["id"], ["triaged"], data={"redo": d.get("n")}, actor="owner")
         queue.enqueue(REPLY, {"conv_id": conv["id"]}, idempotency_key=f"reply:{conv['id']}:{int(d.get('n', 0)) + 1}")
         return "🔁 Переделаю черновик в течение минуты."
+    if action == "fill":
+        if not d.get("placeholders"):
+            return "Заполнять нечего."
+        control.set_flag(conn, clock, FILL_FLAG, str(rowid), actor="owner")
+        return f"Напиши следующим сообщением: {d['placeholders'][0][9:-2]}. (/cancel — передумал)"
     if action == "no":
         _walk(conn, clock, conv["id"], ["triaged", "waiting"], data={"declined": d.get("n")}, actor="owner")
         record_event(conn, clock, entity="conversation", entity_id=conv["id"], kind="reply_outcome", actor="owner",
@@ -628,4 +660,140 @@ def run(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, kb: KnowledgeBas
     res.processed, res.categories, res.drafts, res.postings = p.processed, p.categories, p.drafts, p.postings
     res.errors += p.errors
     res.ghosted = mark_ghosted(conn, clock, ic.ghosted_after_days)
+    res.reminders = remind(conn, clock, cfg, notifier)
     return res
+
+
+# --- interviews (S7) -------------------------------------------------------------------------
+
+
+def record_invites(conn, clock, cfg: AppConfig, conv_id: str, app_id: str | None, m: InMessage) -> list[str]:
+    """Interviews from calendar invitations, stored on the conversation (and the application)."""
+    from zoneinfo import ZoneInfo
+
+    conv = _conv(conn, conv_id)
+    data = json.loads(conv["data_json"] or "{}")
+    known = {(i["uid"], i["start"]) for i in data.get("interviews", [])}
+    out = []
+    for ics in m.invites:
+        for e in cal.parse_ics(ics, cfg.settings.timezone):
+            if e.end < clock.now() or (e.uid, iso(e.start)) in known:
+                continue
+            data.setdefault("interviews", []).append({"uid": e.uid, "start": iso(e.start), "end": iso(e.end),
+                                                      "summary": e.summary, "url": e.url, "reminded": []})
+            known.add((e.uid, iso(e.start)))
+            local = e.start.astimezone(ZoneInfo(cfg.settings.timezone))
+            out.append(f"{local:%a %d.%m %H:%M} (Алматы) {e.summary}".strip() + (f" {e.url}" if e.url else ""))
+    if out:
+        _save_conv(conn, conv_id, data)
+        if app_id:
+            advance_application(conn, clock, app_id, "interview", evidence=f"calendar invite: {m.subject[:100]}")
+    return out
+
+
+REMINDERS = ((24 * 3600, "24h", "завтра"), (3600 + 15 * 60, "1h", "через час"))
+
+
+def remind(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, notifier: Notifier) -> int:
+    """Telegram reminders a day and an hour before each recorded interview, with what was sent."""
+    from datetime import datetime as _dt
+    from zoneinfo import ZoneInfo
+
+    sent = 0
+    now = clock.now()
+    for conv in conn.execute("SELECT id, application_id, data_json FROM conversations "
+                             "WHERE json_extract(data_json, '$.interviews') IS NOT NULL").fetchall():
+        data = json.loads(conv["data_json"])
+        changed = False
+        for iv in data["interviews"]:
+            start = _dt.fromisoformat(iv["start"].replace("Z", "+00:00"))
+            left = (start - now).total_seconds()
+            for window, tag, word in REMINDERS:
+                if 0 < left <= window and tag not in iv["reminded"]:
+                    # the 24h reminder is pointless once the 1h one is due
+                    if tag == "24h" and left <= REMINDERS[1][0]:
+                        iv["reminded"].append(tag)
+                        continue
+                    local = start.astimezone(ZoneInfo(cfg.settings.timezone))
+                    lines = [f"⏰ Интервью {word}: {local:%a %d.%m %H:%M} (Алматы) — {iv['summary']}"]
+                    if iv.get("url"):
+                        lines.append(iv["url"])
+                    if conv["application_id"]:
+                        j = conn.execute("SELECT j.company, j.title, j.url, a.data_json FROM applications a "
+                                         "JOIN jobs j ON j.id = a.job_id WHERE a.id = ?",
+                                         (conv["application_id"],)).fetchone()
+                        if j:
+                            lines.append(f"{j['company']} — {j['title']}\n{j['url']}")
+                            arts = json.loads(j["data_json"] or "{}").get("artifacts", {})
+                            if arts.get("pdf") or arts.get("tex"):
+                                lines.append(f"Отправленное CV: {arts.get('pdf') or arts.get('tex')}")
+                    if notifier.send("\n".join(lines)):
+                        iv["reminded"].append(tag)
+                        changed = True
+                        sent += 1
+        if changed:
+            _save_conv(conn, conv["id"], data)
+    return sent
+
+
+# --- WhatsApp through the bot (S7) -----------------------------------------------------------
+
+
+def wa_link(thread_key: str | None, text: str) -> str:
+    from urllib.parse import quote
+
+    digits = re.sub(r"\D", "", thread_key or "")
+    return f"https://wa.me/{digits if len(digits) >= 7 else ''}?text={quote(text)}"
+
+
+def whatsapp_inbound(conn, clock, cfg: AppConfig, queue: Queue, raw: str) -> str:
+    """`/wa <phone or name>` + newline + the pasted message. Stored as a WhatsApp conversation and
+    triaged like mail; the reply comes back as a wa.me link (WhatsApp has no API for personal chats)."""
+    head, _, text = raw.strip().partition("\n")
+    head, text = head.strip(), text.strip()
+    if not head or not text:
+        return ("Формат: /wa +77001234567 Имя\n<текст сообщения из WhatsApp>\n"
+                "(первая строка — номер или имя рекрутера, дальше вставь сообщение)")
+    phone = re.search(r"\+?\d[\d\s()-]{6,}\d", head)
+    digits = re.sub(r"\D", "", phone.group(0)) if phone else ""
+    name = (head.replace(phone.group(0), "") if phone else head).strip(" ,-")
+    key = digits or name.lower()
+    now = iso(clock.now())
+    m = InMessage(channel="whatsapp", ext_id=f"wa:{key}:{hashlib.sha1(text.encode()).hexdigest()[:12]}", ts=now,
+                  from_addr=f"wa:{digits}" if digits else f"wa:{name}", from_name=name, text=text[:6000],
+                  thread_key=digits or key)
+    if not store(conn, clock, cfg, m, owner=set(), force=True):
+        return "Это сообщение уже было."
+    queue.enqueue(PROCESS, {}, idempotency_key=f"inbox.process:{m.id}")
+    return "Принял. Разберу и пришлю черновик в течение минуты."
+
+
+# --- filling placeholders from Telegram (S7) -------------------------------------------------
+
+FILL_FLAG = "inbox.fill_pending"
+
+
+def fill_pending(conn) -> bool:
+    return bool(control.get_flag(conn, FILL_FLAG))
+
+
+def fill_next(conn, clock, text: str) -> tuple[str, list | None]:
+    """The owner's next plain message replaces the first placeholder of the pending draft. It is the
+    owner's own text, so it is not truth-gated; the updated card comes back with its buttons."""
+    rowid = control.get_flag(conn, FILL_FLAG)
+    control.set_flag(conn, clock, FILL_FLAG, "", actor="owner")
+    if text.strip() in ("/cancel", "отмена"):
+        return "Ок, не заполняю.", None
+    conv = conn.execute("SELECT rowid, * FROM conversations WHERE rowid = ?", (int(rowid),)).fetchone()
+    if conv is None or conv["state"] != "draft_ready":
+        return "Черновик уже неактуален.", None
+    data = json.loads(conv["data_json"] or "{}")
+    d = data["draft"]
+    hole = d["placeholders"].pop(0)
+    d["text"] = d["text"].replace(hole, text.strip(), 1)
+    d.setdefault("filled", []).append(hole)
+    _save_conv(conn, conv["id"], data)
+    record_event(conn, clock, entity="conversation", entity_id=conv["id"], kind="note", actor="owner",
+                 data={"filled": hole})
+    left = (" Осталось: " + ", ".join(d["placeholders"])) if d["placeholders"] else " Всё заполнено."
+    return f"✍️ Вставил.{left}\n\n— Черновик —\n{d['text']}", card_buttons(conn, conv["id"])

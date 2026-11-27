@@ -182,3 +182,12 @@ provider that does not train on prompts. Without `tectonic` installed the card c
 * Dead-man's switch: create a free check on healthchecks.io (period 1 h, grace 2 h), put its ping URL
   in `settings.yaml: selfcheck.ping_url`. If the VM dies, that service e-mails you.
 * Restore test, e.g. monthly: `jp backup --verify`.
+
+## Scheduling, WhatsApp, KB extract (S7)
+
+* Calendar: Google Calendar → Settings → your calendar → "Secret address in iCal format" →
+  `CALENDAR_ICS_URL=...` in `/etc/jobpipe/secrets.env`. Drafts for invites then carry 3 free slots.
+* WhatsApp: in the bot, `/wa +77001234567 Name`, new line, paste the recruiter's message. The draft
+  comes back; «💬 Ссылка для WhatsApp» opens WhatsApp with the text filled in.
+* Fact base from your CV: fill `kb/profile.yaml` first, then `jp kb extract cv.md` and review
+  `kb/facts.draft.yaml` before moving lines into `facts.yaml`.

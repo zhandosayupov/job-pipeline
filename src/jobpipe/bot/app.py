@@ -41,6 +41,7 @@ COMMANDS = [
     BotCommand(command="sources", description="Источники"),
     BotCommand(command="rate", description="Оценить разметку"),
     BotCommand(command="inbox", description="Переписка с рекрутерами"),
+    BotCommand(command="wa", description="Сообщение из WhatsApp: /wa номер, дальше текст"),
     BotCommand(command="pause", description="Стоп всех внешних действий"),
     BotCommand(command="resume", description="Снять паузу"),
     BotCommand(command="help", description="Список команд"),
@@ -53,6 +54,7 @@ HELP = (
     "/funnel — сколько вакансий и заявок на каждом этапе\n"
     "/sources — последний запуск каждого источника\n"
     "/rate — оценить случайную разметку (👍/👎), считает % согласия\n"
+    "/wa <номер или имя> + текст — сообщение рекрутера из WhatsApp, черновик придёт ссылкой wa.me\n"
     "/inbox — переписка с рекрутерами; черновики ответов ждут кнопки «В черновики»\n"
     "/protect <компания> · /unprotect <компания> — protected pool\n"
     "/dryrun <платформа> on|off — DRY_RUN для подачи\n"
@@ -221,6 +223,24 @@ class BotService:
         with self._conn() as conn:
             return message_decision(conn, self.clock, Queue(conn, self.clock, self.cfg.settings.queue), action, rowid)
 
+    def fill_pending(self) -> bool:
+        from ..services.inbox import fill_pending
+
+        with self._conn() as conn:
+            return fill_pending(conn)
+
+    def fill(self, text: str):
+        from ..services.inbox import fill_next
+
+        with self._conn() as conn:
+            return fill_next(conn, self.clock, text)
+
+    def whatsapp(self, raw: str) -> str:
+        from ..services.inbox import whatsapp_inbound
+
+        with self._conn() as conn:
+            return whatsapp_inbound(conn, self.clock, self.cfg, Queue(conn, self.clock, self.cfg.settings.queue), raw)
+
     def inbox_text(self, limit: int = 15) -> str:
         from ..services.inbox import clean_approvals
 
@@ -363,6 +383,11 @@ def build_dispatcher(service: BotService, owner_id: int) -> Dispatcher:
             await cb.message.edit_reply_markup(reply_markup=None)
             await cb.message.answer(result)
 
+    @dp.message(Command("wa"))
+    async def _wa(message: Message, command: CommandObject) -> None:
+        raw = (message.text or "").split(maxsplit=1)[1] if len((message.text or "").split(maxsplit=1)) > 1 else ""
+        await message.answer(await asyncio.to_thread(service.whatsapp, raw), disable_web_page_preview=True)
+
     @dp.message(Command("inbox"))
     async def _inbox(message: Message) -> None:
         await message.answer(await asyncio.to_thread(service.inbox_text), disable_web_page_preview=True)
@@ -379,6 +404,16 @@ def build_dispatcher(service: BotService, owner_id: int) -> Dispatcher:
                 await cb.message.answer(result + "\nВсё оценено.")
             else:
                 await cb.message.answer(nxt[0], reply_markup=_keyboard(nxt[1]), disable_web_page_preview=True)
+
+    @dp.message(F.text)
+    async def _plain(message: Message) -> None:
+        """Plain text: the value for a pending «✍️ Заполнить», else a hint."""
+        if await asyncio.to_thread(service.fill_pending):
+            text, buttons = await asyncio.to_thread(service.fill, message.text or "")
+            await message.answer(text, reply_markup=_keyboard(buttons) if buttons else None,
+                                 disable_web_page_preview=True)
+        else:
+            await message.answer("Не понял. /help — список команд.")
 
     return dp
 

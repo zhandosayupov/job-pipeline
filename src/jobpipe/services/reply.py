@@ -26,6 +26,7 @@ from .triage import EXTRA_TOPICS
 from .truth import TruthGate, TruthReport
 
 MAX_WORDS = 220
+SLOT_HOLE = "[[ВПИШИ: удобное время для звонка]]"
 PLACEHOLDER = re.compile(r"\[\[[^\]]{1,80}\]\]")
 TOPIC_RU = {"compensation": "зарплатные ожидания", "notice_period": "срок выхода", "start_date": "дата выхода",
             "visa": "виза/разрешение на работу", "citizenship": "гражданство", "references": "рекомендации",
@@ -138,12 +139,19 @@ def _norm(s: str) -> str:
 
 def build(kb: KnowledgeBase, policy: PolicyCfg, router, *, message: str, subject: str, to_name: str,
           category: str, questions: list[str], topics: set[str], company: str | None, job_title: str | None,
-          job_country: str | None) -> Draft:
+          job_country: str | None, slots: list[str] | None = None) -> Draft:
     lang = lang_of(f"{subject}\n{message}")
     qa, holes, q_topics = answers_for(questions, kb, policy, job_country=job_country, lang=lang)
-    if category == "invite" and "[[ВПИШИ: удобное время для звонка]]" not in holes:
-        holes.append("[[ВПИШИ: удобное время для звонка]]")
+    if category == "invite" and SLOT_HOLE not in holes:
+        holes.append(SLOT_HOLE)
     fixed = [a for _, a in qa]
+    if slots and SLOT_HOLE in holes:
+        # Free times from the owner's own calendar (S7): a fixed answer, not generated text.
+        holes.remove(SLOT_HOLE)
+        intro = "Мне удобно в любое из этих окон:" if lang == "ru" else "I am available at any of these times:"
+        tail = ("Если не подходит, предложите своё время." if lang == "ru"
+                else "If none of them works, I am happy to adapt.")
+        fixed.append("\n".join([intro, *[f"- {x}" for x in slots], tail]))
     all_topics = set(topics) | q_topics
     gate = TruthGate(kb, allowed_extra=[x for x in (company, job_title, to_name, subject, *fixed) if x])
     draft = Draft(text="", lang=lang, generated=False, fixed=fixed, placeholders=holes, topics=all_topics)

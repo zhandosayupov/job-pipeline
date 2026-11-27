@@ -1,0 +1,26 @@
+From: Acme Recruiting <calendar@acme.example>
+To: alex@example.com
+Subject: Invitation: Acme technical interview
+Date: Thu, 26 Nov 2026 08:00:00 +0000
+Message-ID: <ics-1@acme.example>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="B"
+
+--B
+Content-Type: text/plain; charset="utf-8"
+
+You have been invited to the Acme technical interview for the C++ Engineer role.
+--B
+Content-Type: text/calendar; charset="utf-8"; method=REQUEST
+
+BEGIN:VCALENDAR
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:acme-int-1
+DTSTART:20261201T090000Z
+DTEND:20261201T100000Z
+SUMMARY:Acme technical interview
+LOCATION:https://meet.google.com/abc-defg-hij
+END:VEVENT
+END:VCALENDAR
+--B--
