@@ -316,3 +316,72 @@ def test_daily_cap_defers(env, app_cfg, clock):
     assert run_next(env, FakePage(FORM))["outcome"] == "defer"
     assert state(conn) == "ready" and data(conn)["deferred_until"]
     assert ap.schedule(conn, clock, app_cfg, q, notifier) == []   # deferred: not picked again yet
+
+
+# --- S4 review fixes ----------------------------------------------------------------------
+
+
+def test_dry_run_report_is_sent_once_until_dry_run_is_off(env, app_cfg, clock):
+    conn, q, _api, notifier, _ = env
+    ap.schedule(conn, clock, app_cfg, q, notifier)
+    run_next(env, FakePage(FORM))
+    rowid = conn.execute("SELECT rowid FROM applications").fetchone()[0]
+    ap.owner_decision(conn, clock, q, "dry", rowid)
+    assert ap.schedule(conn, clock, app_cfg, q, notifier) == []          # no endless dry-run cards
+    control.set_flag(conn, clock, "dry_run.greenhouse", "0")
+    assert ap.schedule(conn, clock, app_cfg, q, notifier) == ["app:gh:acme:1"]
+
+
+def test_reclaimed_submit_is_never_handed_out_again(env, app_cfg, clock):
+    conn, q, api, notifier, _ = env
+    control.set_flag(conn, clock, "dry_run.greenhouse", "0")
+    ap.schedule(conn, clock, app_cfg, q, notifier)
+    run_next(env, FakePage(FORM))                                        # fill -> submit queued
+    task = api.lease_once("laptop")                                      # worker takes the submit...
+    assert task["type"] == ap.SUBMIT
+    clock.advance(app_cfg.settings.queue.lease_seconds + 5)              # ...and dies after the click
+    assert api.lease_once("laptop") is None                              # not handed out again
+    assert state(conn) == "submit_unknown"
+    assert control.SideEffects(conn, clock).status("apply:acme:gh:acme:1") == "unknown"
+    assert any("Воркер пропал" in m for m in notifier.messages)
+
+
+class Boom(Exception):
+    pass
+
+
+def test_worker_crash_before_click_is_reported_not_left_hanging(env, app_cfg, clock):
+    conn, q, _api, notifier, _ = env
+    control.set_flag(conn, clock, "dry_run.greenhouse", "0")
+    ap.schedule(conn, clock, app_cfg, q, notifier)
+    run_next(env, FakePage(FORM))
+
+    class Slow(FakePage):
+        def fill(self, key, value):
+            raise Boom("Timeout 30000ms exceeded")
+
+    assert run_next(env, Slow(FORM))["outcome"] == "failed"
+    assert state(conn) == "apply_failed"
+    assert control.SideEffects(conn, clock).status("apply:acme:gh:acme:1") is None   # nothing went out
+
+
+def test_worker_crash_during_click_is_unknown(env, app_cfg, clock):
+    conn, q, _api, notifier, _ = env
+    control.set_flag(conn, clock, "dry_run.greenhouse", "0")
+    ap.schedule(conn, clock, app_cfg, q, notifier)
+    run_next(env, FakePage(FORM))
+
+    class DiesOnClick(FakePage):
+        def click(self, selector):
+            raise Boom("Target closed")
+
+    assert run_next(env, DiesOnClick(FORM))["outcome"] == "unknown"
+    assert state(conn) == "submit_unknown"
+
+
+def test_pause_defers_without_a_12h_wait(env, app_cfg, clock):
+    conn, q, _api, notifier, _ = env
+    ap.schedule(conn, clock, app_cfg, q, notifier)
+    control.set_flag(conn, clock, control.PAUSED, "1")
+    ap.on_fill_result(conn, clock, app_cfg, q, notifier, "app:gh:acme:1", ap.FillResult(ok=True, manifest_hash="h"))
+    assert state(conn) == "ready" and "deferred_until" not in data(conn)

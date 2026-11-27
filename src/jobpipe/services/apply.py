@@ -103,6 +103,8 @@ def schedule(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, queue: Queu
             continue
         if data.get("deferred_until") and data["deferred_until"] > now:
             continue
+        if data.get("dry_run_done") and control.is_dry_run(conn, data.get("platform", "")):
+            continue    # one dry-run report per application until dry run is switched off (S4 review)
         job = _job(conn, app["id"])
         platform = platform_of(job["url"], job["source"])
         if platform not in cfg.policy.apply_platforms:
@@ -150,9 +152,10 @@ def resolve_for(conn: sqlite3.Connection, cfg: AppConfig, kb: KnowledgeBase, app
 def _applied_today(conn, clock, cfg, platform) -> int:
     start = clock.now().astimezone(ZoneInfo(cfg.settings.timezone)).replace(hour=0, minute=0, second=0, microsecond=0)
     rows = conn.execute(
-        "SELECT a.data_json FROM events e JOIN applications a ON a.id = e.entity_id WHERE e.entity = 'application' "
+        "SELECT a.data_json, a.id FROM events e JOIN applications a ON a.id = e.entity_id "
+        "WHERE e.entity = 'application' "
         "AND e.to_state = 'submitting' AND e.ts >= ?", (iso(start),)).fetchall()
-    return sum(1 for r in rows if json.loads(r[0] or "{}").get("platform") == platform)
+    return len({r[1] for r in rows if json.loads(r[0] or "{}").get("platform") == platform})   # distinct apps
 
 
 def _similar(conn, app_id, job) -> bool:
@@ -213,8 +216,9 @@ def on_fill_result(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, queue
         _send(notifier, "🧪 DRY RUN — форма заполнена, но НЕ отправлена:\n" + _approval_text(title, job["url"], data,
               d.reasons), r.screenshot, buttons=[[("👌 Понятно", f"s:dry:{rowid}")]])
     elif d.route is Route.DEFER:
-        data["deferred_until"] = iso(clock.now() + timedelta(hours=12))
-        _save(conn, app_id, data)
+        if not control.is_paused(conn):        # a pause just waits for /resume; the daily cap waits 12 h
+            data["deferred_until"] = iso(clock.now() + timedelta(hours=12))
+            _save(conn, app_id, data)
         transition(conn, clock, "application", app_id, "ready", expected="filling", actor="apply",
                    data={"deferred": d.reasons})
     else:  # BLOCK
@@ -283,12 +287,28 @@ def owner_decision(conn: sqlite3.Connection, clock: Clock, queue: Queue, action:
                     "не отправит, а вернёт заявку тебе.")
         return "🚀 Отправка поставлена в очередь воркера."
     if action == "dry":
+        data = _app_data(conn, app["id"])
+        data["dry_run_done"] = True
+        _save(conn, app["id"], data)
         transition(conn, clock, "application", app["id"], "ready", expected="awaiting_approval", actor="owner")
         return "👌 Ок. Выключи dry run для платформы (/dryrun <платформа> off), чтобы отправлять по-настоящему."
     if action == "no":
         transition(conn, clock, "application", app["id"], "withdrawn", expected="awaiting_approval", actor="owner")
         return "✋ Не отправляю. Заявка отменена."
     return "Неизвестное действие."
+
+
+def submit_lost(conn: sqlite3.Connection, clock: Clock, notifier: Notifier | None, app_id: str) -> None:
+    """A submit task came back from an expired lease: the outcome is unknown, never retried."""
+    key = side_effect_key(conn, app_id)
+    control.SideEffects(conn, clock).mark(key, "unknown")
+    if conn.execute("SELECT state FROM applications WHERE id = ?", (app_id,)).fetchone()[0] == "submitting":
+        transition(conn, clock, "application", app_id, "submit_unknown", expected="submitting", actor="apply",
+                   data={"error": "worker lease expired during submit"})
+    job = _job(conn, app_id)
+    if notifier is not None:
+        notifier.send(f"❓ Воркер пропал во время отправки: {job['company']} — {job['title']}\n{job['url']}\n"
+                      f"Клик мог произойти. Проверь на сайте: jobpipe effects resolve {key} done|failed")
 
 
 # --- 5. submit result ---------------------------------------------------------------------------
