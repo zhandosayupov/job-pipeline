@@ -4,6 +4,15 @@
 # Safe to re-run: every step checks before it changes anything.
 set -euo pipefail
 
+# bash reads a script while it runs, and this one replaces /opt/jobpipe (where it usually lives):
+# run from a private copy so the steps below are this version's, not a mix (found on the first deploy).
+if [[ -z "${JOBPIPE_PROVISION_COPY:-}" ]]; then
+  copy="$(mktemp /tmp/jobpipe-provision.XXXXXX)"
+  cp -- "$0" "$copy"
+  JOBPIPE_PROVISION_COPY="$copy" exec bash "$copy" "$@"
+fi
+trap 'rm -f -- "${JOBPIPE_PROVISION_COPY:-}"' EXIT
+
 REPO_URL="${1:-https://github.com/zhandosayupov/job-pipeline.git}"
 BRANCH="${2:-main}"
 APP_DIR=/opt/jobpipe
@@ -57,7 +66,7 @@ fi
 log "code in $APP_DIR ($BRANCH): fresh root-owned clone"
 # Never run git as root inside the old checkout: its .git could have been tampered with.
 NEW_DIR=$(mktemp -d /opt/jobpipe.new.XXXXXX)
-trap 'rm -rf -- "$NEW_DIR"' EXIT          # a failed clone leaves no stray directory behind
+trap 'rm -rf -- "$NEW_DIR" "${JOBPIPE_PROVISION_COPY:-}"' EXIT   # no stray clone or script copy left behind
 git clone --quiet --depth 1 --branch "$BRANCH" "$REPO_URL" "$NEW_DIR"
 chown -R root:root "$NEW_DIR"
 chmod -R u+rwX,go+rX,go-w "$NEW_DIR"     # mktemp makes 0700: open read access, no write for others
@@ -132,6 +141,10 @@ else
 fi
 
 log "health"
-sleep 2
-curl -fsS http://127.0.0.1:8080/healthz && echo || echo "   /healthz not answering (bot not running yet?)"
+healthy=""
+for _ in $(seq 1 15); do               # the bot needs ~10 s to start on an e2-micro
+  if curl -fsS http://127.0.0.1:8080/healthz; then healthy=1; echo; break; fi
+  sleep 2
+done
+[[ -n $healthy ]] || echo "   /healthz not answering after 30 s (bot not running yet?)"
 systemctl list-timers 'jobpipe-*' --no-pager
