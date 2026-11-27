@@ -213,3 +213,24 @@ def test_hh_sends_the_contact_header_and_needs_it():
     assert out.postings[1].salary_text is None
     missing = SOURCES["hh"]().fetch(fixture_http(), SourceContext(params={}))
     assert missing.status == "error" and "contact" in missing.errors[0]
+
+
+def test_hh_follows_pages_up_to_max_pages():
+    import json
+
+    pages = []
+
+    def hh(req):
+        page = int(req.url.params.get("page"))
+        pages.append(page)
+        body = json.loads((F / "hh_vacancies.json").read_text(encoding="utf-8"))
+        for it in body["items"]:
+            it["id"] = f"{it['id']}{page}"
+        body.update(pages=5, page=page)
+        return httpx.Response(200, json=body)
+
+    ctx = CONTEXTS["hh"]()
+    ctx.params["max_pages"] = 2
+    out = SOURCES["hh"]().fetch(fixture_http({"api.hh.ru": hh}), ctx)
+    assert pages == [0, 1] and len(out.postings) == 4
+    assert out.postings[0].posted_at == "2026-11-26T05:00:00Z"          # hh's "+0500" offset

@@ -80,4 +80,4 @@ sources:
   # your private copy, e.g. contact: "jobpipe/0.1 (you@yourmail)". Areas: kz, ru, by, uz.
   hh:
     enabled: false
-    params: {contact: null, areas: [kz], queries: ["c++", "backend"], per_page: 50, period_days: 7}
+    params: {contact: null, areas: [kz], queries: ["c++", "backend"], per_page: 50, max_pages: 3, period_days: 7}

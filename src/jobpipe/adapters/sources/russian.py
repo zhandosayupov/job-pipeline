@@ -91,8 +91,13 @@ class HeadHunter:
                               "page": 0, "order_by": "publication_time"}
                     if ctx.params.get("period_days"):
                         params["period"] = ctx.params["period_days"]
-                    data = http.get_json(self.url, params, headers=headers)
-                    for j in data.get("items", []):
+                    items = []
+                    for page in range(int(ctx.params.get("max_pages", 3))):     # newest first (PR #11 review)
+                        data = http.get_json(self.url, {**params, "page": page}, headers=headers)
+                        items += data.get("items", [])
+                        if page + 1 >= int(data.get("pages") or 1):
+                            break
+                    for j in items:
                         snip = j.get("snippet") or {}
                         area_name = (j.get("area") or {}).get("name")
                         sched = (j.get("schedule") or {}).get("id")
