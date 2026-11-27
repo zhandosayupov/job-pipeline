@@ -48,7 +48,7 @@ APPLICATION = _table(
         "submit_unknown": {"applied", "apply_failed"},
         "apply_failed": {"filling"},
         "applied": {"replied", "rejected", "ghosted"},
-        "ghosted": {"replied"},
+        "ghosted": {"replied", "rejected"},  # a late rejection after silence
         "replied": {"screening", "interview", "rejected"},
         "screening": {"interview", "rejected", "ghosted"},
         "interview": {"offer", "rejected", "ghosted"},

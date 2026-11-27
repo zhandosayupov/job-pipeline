@@ -95,3 +95,13 @@ tasks:
     prompt_version: v1
     temperature: 0.3
     max_tokens: 1200
+  triage:                            # S5: one recruiter message -> category, questions, topics (pseudonymized)
+    chain: [gemini]
+    prompt_version: v1
+    temperature: 0
+    max_tokens: 800
+  reply:                             # S5: reply draft around fixed answers and placeholders, then the truth gate
+    chain: [gemini]
+    prompt_version: v1
+    temperature: 0.3
+    max_tokens: 1200

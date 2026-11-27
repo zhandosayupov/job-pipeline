@@ -61,6 +61,7 @@ class RetentionCfg(_Model):
     jobs_compact_days: int = 30       # finished jobs keep only `keep_fields`
     applications_compact_days: int = 180
     side_effects_compact_days: int = 90   # keys are kept forever (idempotency); payload dropped
+    messages_compact_days: int = 120      # recruiter mail keeps headers and category; the text goes
     keep_fields: dict[str, list[str]] = Field(default_factory=lambda: {
         "job": ["company", "title", "url", "fingerprint", "source"],
         "application": ["company", "title", "url", "platform"],
@@ -90,6 +91,25 @@ class LabelCfg(_Model):
 
 
 
+class InboxCfg(_Model):
+    """S5: Gmail over IMAP (ADR 0010) and recruiter messages from the Telegram userbot."""
+
+    gmail_user: str | None = None          # the mailbox to read; defaults to kb/profile.yaml email
+    imap_host: str = "imap.gmail.com"
+    first_run_days: int = 14               # the first run reads this far back, never the whole mailbox
+    max_per_run: int = 200
+    body_chars: int = 6000                 # stored and triaged text per message
+    ghosted_after_days: int = 21           # applied with no reply this long -> ghosted
+    # Senders whose mail is a job alert (vacancy links become postings), matched on the address or domain.
+    alert_senders: list[str] = Field(default_factory=lambda: ["hh.kz", "hh.ru", "jobalerts-noreply@linkedin.com"])
+    # Domains of hiring platforms: their mail is always job-related.
+    ats_domains: list[str] = Field(default_factory=lambda: [
+        "greenhouse.io", "greenhouse-mail.io", "lever.co", "hire.lever.co", "ashbyhq.com", "workablemail.com",
+        "smartrecruiters.com", "myworkday.com", "hh.kz", "hh.ru", "linkedin.com", "teamtailor.com",
+        "recruitee.com", "breezy.hr", "jobvite.com", "icims.com"])
+    ignore_senders: list[str] = Field(default_factory=list)   # never read, e.g. a noisy newsletter
+
+
 class Settings(_Model):
     timezone: str = "Asia/Almaty"
     telegram: TelegramCfg = TelegramCfg()
@@ -99,6 +119,7 @@ class Settings(_Model):
     retention: RetentionCfg = RetentionCfg()
     label: LabelCfg = LabelCfg()
     http: HttpCfg = HttpCfg()
+    inbox: InboxCfg = InboxCfg()
     log_level: str = "INFO"
 
     @model_validator(mode="after")

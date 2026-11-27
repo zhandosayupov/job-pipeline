@@ -7,8 +7,12 @@ set settings.yaml `http.host` to the VM's Tailscale address (never open the port
   GET  /worker/lease?worker=&wait= long-poll up to `wait` s (<= 25) -> {"task": {...}} or {"task": null}
   POST /worker/resolve             {"app_id", "fields": [FormField]} -> {"answers": [...], "unanswered": [...]}
   GET  /worker/artifact/{app}/{name}  CV (pdf|tex) or letter file of an application
-  POST /worker/result              multipart: "json" {"task_id", "kind": fill|submit, "app_id", "result"},
-                                   optional "screenshot" file
+  POST /worker/result              multipart: "json" {"task_id", "kind": fill|submit|tg_draft, "app_id",
+                                   "result"}, optional "screenshot" file
+  POST /worker/inbound             {"messages": [...]} from the Telegram userbot (S5): stored and triaged
+
+`lease` takes `types=apply.fill,apply.submit` (the browser worker, default) or `types=tg.draft` (the
+userbot). A tg.draft task reserves its side-effect key here, before it is handed out: at most once.
 """
 from __future__ import annotations
 
@@ -31,6 +35,7 @@ from ..services.forms import FormField
 from ..services.queue import Queue
 
 TASK_TYPES = [ap.FILL, ap.SUBMIT]
+WORKER_TYPES = {ap.FILL, ap.SUBMIT, "tg.draft"}
 
 
 class WorkerAPI:
@@ -67,14 +72,15 @@ class WorkerAPI:
                          (worker[:64], iso(self.clock.now()), json.dumps(info, ensure_ascii=False)[:4000]))
             return {"paused": control.is_paused(conn)}
 
-    def lease_once(self, worker: str) -> dict | None:
+    def lease_once(self, worker: str, types: list[str] | None = None) -> dict | None:
+        types = [t for t in (types or TASK_TYPES) if t in WORKER_TYPES] or TASK_TYPES
         with self._conn() as conn:
             if control.is_paused(conn):
                 return None
             q = Queue(conn, self.clock, self.cfg.settings.queue)
             q.reclaim_expired()
             while True:
-                t = q.lease(f"worker:{worker[:64]}", TASK_TYPES)
+                t = q.lease(f"worker:{worker[:64]}", types)
                 if t is None:
                     return None
                 if t.type == ap.SUBMIT and conn.execute("SELECT reclaims FROM tasks WHERE id = ?",
@@ -84,7 +90,52 @@ class WorkerAPI:
                     ap.submit_lost(conn, self.clock, self.notifier, t.payload["app_id"])
                     q.complete(t.id)
                     continue
-                return {"task_id": t.id, "type": t.type, **t.payload}
+                if t.type != "tg.draft":
+                    return {"task_id": t.id, "type": t.type, **t.payload}
+                out = self._tg_draft_task(conn, q, t)
+                if out is not None:
+                    return out
+
+    def _tg_draft_task(self, conn, q: Queue, t) -> dict | None:
+        """Reserve the key, then hand out chat id and text. An existing key means it already happened
+        (or is unknown): the task is completed without acting."""
+        conv = conn.execute("SELECT data_json FROM conversations WHERE id = ?", (t.payload["conv_id"],)).fetchone()
+        draft = json.loads(conv[0] or "{}").get("draft") if conv else None
+        se = control.SideEffects(conn, self.clock)
+        if not draft or not se.plan(t.payload["key"], "tg_draft", {"conv_id": t.payload["conv_id"]}):
+            if se.status(t.payload["key"]) == "planned":
+                # handed out before and never reported (userbot died): unknown, and the owner is told
+                se.mark(t.payload["key"], "unknown")
+                if self.notifier is not None:
+                    self.notifier.send("❓ Userbot пропал, не сообщив, сохранён ли черновик в Telegram. Проверь "
+                                       f"чат; повторить: jobpipe effects resolve {t.payload['key']} reset")
+            q.complete(t.id)
+            return None
+        return {"task_id": t.id, "type": t.type, "app_id": t.payload["conv_id"], "key": t.payload["key"],
+                "chat_id": draft["reply_to"].get("thread_key"), "text": draft["text"]}
+
+    def inbound(self, messages: list[dict]) -> dict:
+        """Telegram messages from the userbot (secondary, job-only account): stored and queued for triage."""
+        from ..domain.message import InMessage
+        from ..services import inbox
+
+        kb = self.kb_loader() if self.kb_loader else None
+        stored = []
+        with self._conn() as conn:
+            owner = inbox.owner_addresses(self.cfg, kb)
+            for raw in messages[:200]:
+                chat = str(raw["chat_id"])
+                m = InMessage(channel="telegram", ext_id=f"{chat}:{raw['msg_id']}", ts=str(raw.get("ts") or
+                                                                                        iso(self.clock.now())),
+                              from_addr=f"@{raw['username']}" if raw.get("username") else f"tg:{raw.get('from_id')}",
+                              from_name=str(raw.get("from_name") or "")[:120], text=str(raw.get("text") or "")[:6000],
+                              thread_key=chat, direction="out" if raw.get("out") else "in")
+                if inbox.store(conn, self.clock, self.cfg, m, owner=owner, force=True):
+                    stored.append(m.id)
+            if stored:
+                Queue(conn, self.clock, self.cfg.settings.queue).enqueue(
+                    "inbox.process", {}, idempotency_key=f"inbox.process:{stored[0]}")
+        return {"stored": len(stored)}
 
     def resolve(self, app_id: str, fields: list[dict]) -> dict:
         kb = self.kb_loader() if self.kb_loader else None
@@ -108,6 +159,17 @@ class WorkerAPI:
         kind, app_id, task_id = payload["kind"], payload["app_id"], int(payload["task_id"])
         with self._conn() as conn:
             q = Queue(conn, self.clock, self.cfg.settings.queue)
+            if kind == "tg_draft":
+                se = control.SideEffects(conn, self.clock)
+                ok = bool(payload["result"].get("ok"))
+                se.mark(payload["result"]["key"], "done" if ok else "unknown")
+                if self.notifier is not None:
+                    self.notifier.send("📝 Черновик ответа лежит в чате Telegram: проверь и отправь сам." if ok else
+                                       f"❓ Черновик в Telegram мог не сохраниться: {payload['result'].get('error')}."
+                                       f" Проверь чат; jobpipe effects resolve {payload['result']['key']} reset, "
+                                       "чтобы повторить.", silent=ok)
+                q.complete(task_id)
+                return {"outcome": "done" if ok else "unknown"}
             if kind == "fill":
                 r = ap.FillResult.model_validate({**payload["result"], "screenshot": str(screenshot) if screenshot
                                                   else None})
@@ -144,9 +206,10 @@ class WorkerAPI:
         async def lease(request):
             worker = request.query.get("worker", "?")
             wait = min(float(request.query.get("wait", 25)), 25.0)
+            types = [t for t in request.query.get("types", "").split(",") if t] or None
             deadline = time.monotonic() + wait
             while True:
-                task = await asyncio.to_thread(self.lease_once, worker)
+                task = await asyncio.to_thread(self.lease_once, worker, types)
                 if task or time.monotonic() >= deadline:
                     return web.json_response({"task": task})
                 await asyncio.sleep(1.0)
@@ -175,7 +238,12 @@ class WorkerAPI:
                 raise web.HTTPBadRequest(text="json part required first")
             return web.json_response(await asyncio.to_thread(self.result, payload, shot))
 
+        async def inbound(request):
+            body = await request.json()
+            return web.json_response(await asyncio.to_thread(self.inbound, list(body.get("messages") or [])))
+
         return [
+            web.post("/worker/inbound", guard(inbound)),
             web.post("/worker/heartbeat", guard(heartbeat)),
             web.get("/worker/lease", guard(lease)),
             web.post("/worker/resolve", guard(resolve)),

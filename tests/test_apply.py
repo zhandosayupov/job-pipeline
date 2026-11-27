@@ -412,3 +412,18 @@ def test_submit_lost_never_overwrites_a_known_outcome(env, app_cfg, clock):
     se.mark("apply:acme:gh:acme:1", "done")
     ap.submit_lost(conn, clock, None, "app:gh:acme:1")
     assert se.status("apply:acme:gh:acme:1") == "done"
+
+
+@pytest.mark.parametrize("url,platform", [
+    ("https://job-boards.greenhouse.io/acme/jobs/1", "greenhouse"),
+    ("https://boards.greenhouse.io/acme/jobs/1", "greenhouse"),
+    ("https://jobs.lever.co/acme/1", "lever"),
+    ("https://jobs.ashbyhq.com/acme/1", "ashby"),
+    ("https://almaty.hh.kz/vacancy/1", "hh"),
+    ("https://greenhouse.io.evil.example/x", None),     # CodeQL: substring match is not a domain match
+    ("https://fakeashbyhq.com/x", None),
+    ("https://notjobs.lever.co.example/x", None),
+    ("https://evilhh.kz/vacancy/1", None),
+])
+def test_platform_of_matches_whole_domains_only(url, platform):
+    assert ap.platform_of(url) == platform

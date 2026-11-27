@@ -1,0 +1,9 @@
+[Unit]
+Description=jobpipe: read the mailbox every 15 minutes, 08-23 Almaty time
+
+[Timer]
+OnCalendar=*-*-* 08..23:05/15:00 Asia/Almaty
+Persistent=true
+
+[Install]
+WantedBy=timers.target

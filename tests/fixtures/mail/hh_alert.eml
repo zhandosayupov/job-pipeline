@@ -1,0 +1,19 @@
+From: hh.kz <noreply@hh.kz>
+To: alex@example.com
+Subject: Новые вакансии по вашему запросу «C++»
+Date: Thu, 26 Nov 2026 05:00:00 +0000
+Message-ID: <alert-1@hh.kz>
+List-Id: <vacancies.hh.kz>
+MIME-Version: 1.0
+Content-Type: text/html; charset="utf-8"
+
+<html><body>
+<h2>Подходящие вакансии</h2>
+<table>
+<tr><td><a href="https://hh.kz/vacancy/100000001?from=letter&amp;utm_source=alert">C++ разработчик</a></td></tr>
+<tr><td><a href="https://hh.kz/employer/5550001">Delta Systems</a> · Алматы</td></tr>
+<tr><td><a href="https://click.hh.kz/redirect?to=https%3A%2F%2Fhh.kz%2Fvacancy%2F100000002%3Ffrom%3Dletter">Senior C++ Developer (low latency)</a></td></tr>
+<tr><td><a href="https://hh.kz/employer/5550002">Epsilon Trading</a> · Астана</td></tr>
+<tr><td><a href="https://hh.kz/search/vacancy?text=C%2B%2B">Все вакансии</a></td></tr>
+</table>
+</body></html>

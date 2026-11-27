@@ -105,6 +105,13 @@ def run_retention(
                 "AND updated_at < ? AND data_json != '{}'",
                 (cutoff(cfg.side_effects_compact_days),),
             ).rowcount
+            # S5: recruiter mail keeps its headers, category and triage, but the body and links go
+            # once the conversation is idle this long (the funnel needs the category, not the text).
+            counts["messages_compacted"] = conn.execute(
+                "UPDATE messages SET body = '', data_json = json_remove(data_json, '$.links') "
+                "WHERE ts < ? AND body != '' AND processed_at IS NOT NULL",
+                (cutoff(cfg.messages_compact_days),),
+            ).rowcount
             if dry_run:
                 raise _DryRun()
     except _DryRun:
