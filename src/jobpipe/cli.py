@@ -338,7 +338,9 @@ def cmd_kb(cfg: AppConfig, args) -> int:
             # Without the profile, the name/email/phone in the CV could not be pseudonymized.
             print(f"fill {kb_dir}/profile.yaml first (it is what gets pseudonymized): {e}", file=sys.stderr)
             return 1
-        res = kb_extract.extract(_router_factory(cfg, conn, kb)(), Path(args.file).read_text(encoding="utf-8"))
+        # router without the profile's values: nothing is restored into the draft (see kb_extract.extract)
+        res = kb_extract.extract(_router_factory(cfg, conn)(), Path(args.file).read_text(encoding="utf-8"),
+                                 kb.pii_values())
         path = kb_extract.write_draft(res, kb_dir)
         print(f"{len(res.roles)} roles, {len(res.facts)} facts -> {path} (review it; facts.yaml is untouched)")
         if res.dropped:

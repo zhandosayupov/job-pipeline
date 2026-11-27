@@ -34,6 +34,8 @@ Date: 2026-11-27 · Status: accepted (S7) · Extends ADR 0023
   * Every fact must quote a line that is really in the CV; its numbers and technologies must appear
     there too. Anything else is dropped and listed.
   * `facts.yaml` is never touched.
+  * The CV is pseudonymized before the request and the answer is never restored, so the name,
+    e-mail and phone from `profile.yaml` cannot reach the draft file or the console.
 * **Selfcheck pings the LLM once a day**: one `ping` through the router. The result is cached for
   the day, so no quota is spent every hour.
 * **Weekly Claude audit** (`.github/workflows/claude-audit.yml`, Mondays at 09:00 Almaty) runs
