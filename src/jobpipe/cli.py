@@ -341,8 +341,9 @@ def cmd_kb(cfg: AppConfig, args) -> int:
         res = kb_extract.extract(_router_factory(cfg, conn, kb)(), Path(args.file).read_text(encoding="utf-8"))
         path = kb_extract.write_draft(res, kb_dir)
         print(f"{len(res.roles)} roles, {len(res.facts)} facts -> {path} (review it; facts.yaml is untouched)")
-        for d in res.dropped:
-            print("  dropped: " + d)
+        if res.dropped:
+            # the reasons quote CV content: they are in the draft file's header, not on the console
+            print(f"  {len(res.dropped)} item(s) dropped by the checks: see the header of {path.name}")
         return 0
     try:
         kb = kbmod.load(kb_dir)

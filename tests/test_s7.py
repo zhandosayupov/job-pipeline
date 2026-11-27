@@ -1,6 +1,8 @@
 """S7: interview slots from iCal, invitations and reminders, WhatsApp via the bot, filling
 placeholders from Telegram, kb extract checks, the daily LLM ping."""
+import re
 from datetime import UTC, datetime
+from urllib.parse import urlsplit
 
 import httpx
 import pytest
@@ -82,7 +84,9 @@ def test_calendar_invite_records_interview_and_reminds_once(env, app_cfg, clock)
     mb.add("inbox", "invite_ics.eml", "T1")
     run(conn, clock, app_cfg, mb, n, q)
     assert conn.execute("SELECT state FROM applications WHERE id = ?", (app,)).fetchone()[0] == "interview"
-    assert any("📅" in m and "14:00 (Алматы)" in m and "meet.google.com" in m for m in n.messages)
+    invite = next(m for m in n.messages if "📅" in m)
+    links = [urlsplit(u).hostname for u in re.findall(r"https://\S+", invite)]
+    assert "14:00 (Алматы)" in invite and "meet.google.com" in links
     clock.advance(4 * 86400 + 4 * 3600)                   # Nov 30 10:00 UTC: 23 h before
     assert ib.remind(conn, clock, app_cfg, n) == 1 and "завтра" in n.messages[-1]
     assert ib.remind(conn, clock, app_cfg, n) == 0
@@ -230,3 +234,17 @@ def test_overlapping_reminder_runs_send_once(env, app_cfg, clock):
     assert ib.remind(conn, clock, app_cfg, n) == 1
     conn.execute("UPDATE conversations SET data_json = ? WHERE id = ?", (stale, conv["id"]))
     assert ib.remind(conn, clock, app_cfg, n) == 0                   # the key holds
+
+
+def test_reminder_due_during_a_pause_goes_out_after_resume(env, app_cfg, clock):
+    from jobpipe.services import control
+
+    conn, _app, mb, n, q = env
+    mb.add("inbox", "invite_ics.eml", "T1")
+    run(conn, clock, app_cfg, mb, n, q)
+    clock.advance(4 * 86400 + 4 * 3600)                   # 23 h before the interview
+    control.set_flag(conn, clock, control.PAUSED, "1")
+    assert ib.remind(conn, clock, app_cfg, n) == 0        # paused: nothing sent...
+    control.set_flag(conn, clock, control.PAUSED, "0")
+    assert ib.remind(conn, clock, app_cfg, n) == 1        # ...and not lost
+    assert ib.remind(conn, clock, app_cfg, n) == 0
