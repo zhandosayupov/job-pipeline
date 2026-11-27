@@ -78,7 +78,8 @@ mv -- "$NEW_DIR" "$APP_DIR"
 rollback() {
   echo "sync failed: restoring the previous version" >&2
   if [[ -d $APP_DIR.old ]]; then
-    rm -rf -- "$APP_DIR"
+    rm -rf -- "$APP_DIR.failed"
+    mv -- "$APP_DIR" "$APP_DIR.failed"      # kept for debugging; the next provision replaces it
     mv -- "$APP_DIR.old" "$APP_DIR"
     systemctl start 'jobpipe-*.timer' 2>/dev/null || true
     systemctl start jobpipe-bot.service 2>/dev/null || true

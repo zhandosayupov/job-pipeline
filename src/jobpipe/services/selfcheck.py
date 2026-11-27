@@ -94,8 +94,10 @@ def gather(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig) -> list[Check
         if src not in cfg.sources.sources or not cfg.sources.sources[src].enabled:
             continue
         age = _age_h(finished, now)
-        out.append(Check(f"source.{src}", age <= sc.source_stale_hours,
-                         f"last fetched {age:.0f} h ago ({status})" if age > sc.source_stale_hours else ""))
+        ok = age is not None and age <= sc.source_stale_hours
+        detail = "" if ok else (f"last run never finished ({status})" if age is None
+                                else f"last fetched {age:.0f} h ago ({status})")
+        out.append(Check(f"source.{src}", ok, detail))
     return out
 
 
@@ -112,6 +114,10 @@ def _integrity(path: Path) -> bool:
 
 def run(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, notifier: Notifier, ping=None) -> list[Check]:
     checks = gather(conn, clock, cfg)
+    names = {c.name for c in checks}
+    for (key,) in conn.execute("SELECT key FROM control WHERE key LIKE 'selfcheck.%' AND value = 'fail'").fetchall():
+        if key.removeprefix("selfcheck.") not in names:      # the check is gone (source disabled, worker removed)
+            control.set_flag(conn, clock, key, "gone", actor="selfcheck")
     for c in checks:
         flag = f"selfcheck.{c.name}"
         was_failing = control.get_flag(conn, flag) == "fail"
