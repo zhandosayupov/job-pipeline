@@ -16,6 +16,7 @@ import json
 import logging
 import re
 import sqlite3
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Literal
@@ -171,8 +172,16 @@ def _labels_today(conn: sqlite3.Connection, clock: Clock, tz: str) -> int:
         "AND ts >= ?", (iso(start),)).fetchone()[0]
 
 
+RATE_WAIT_S = 61
+MAX_RATE_WAITS = 20          # at most ~20 minutes of waiting per run (the unit allows 30)
+
+
+def _rate_limited_only(e: LLMUnavailable) -> bool:
+    return bool(e.attempts) and all("rpm quota" in a or "tpm quota" in a for a in e.attempts)
+
+
 def run(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, router, notifier: Notifier,
-        limit: int | None = None) -> LabelResult:
+        limit: int | None = None, sleep=time.sleep) -> LabelResult:
     lc = cfg.settings.label
     res = LabelResult()
     if control.is_paused(conn):
@@ -188,6 +197,7 @@ def run(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, router, notifier
     rows = conn.execute(
         "SELECT id, company, title, location, country, kind, posted_at, url, protected, data_json FROM jobs "
         "WHERE state = 'prefiltered'").fetchall()
+    rate_waits = 0
     rows = sorted(rows, key=_queue_order, reverse=True)[: min(limit or lc.max_jobs_per_run, left)]
     now = clock.now()
     for i in range(0, len(rows), lc.batch_size):
@@ -197,9 +207,20 @@ def run(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, router, notifier
         try:
             labels = _label_batch(cfg, router, batch)
         except LLMUnavailable as e:
-            res.failed_batches += 1
-            log.warning("label batch failed", extra={"data": {"error": str(e)[:300]}})
-            continue
+            if not _rate_limited_only(e) or rate_waits >= MAX_RATE_WAITS:
+                res.failed_batches += 1
+                log.warning("label batch failed", extra={"data": {"error": str(e)[:300]}})
+                continue
+            # Every target was only over its per-minute quota (free Gemini: 10/min): wait for the
+            # window instead of dropping the batch (live: 6 of 15 batches lost this way).
+            rate_waits += 1
+            sleep(RATE_WAIT_S)
+            try:
+                labels = _label_batch(cfg, router, batch)
+            except LLMUnavailable as e2:
+                res.failed_batches += 1
+                log.warning("label batch failed", extra={"data": {"error": str(e2)[:300]}})
+                continue
         for row in batch:
             lab = labels.get(row["id"])
             if lab is None:

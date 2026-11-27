@@ -261,3 +261,27 @@ def test_unexpected_enum_values_fall_back_to_safe_defaults():
         "action": "Apply Now", "level": "Middle", "reason": "x" * 600})
     assert (lab.resume_variant, lab.track, lab.visa, lab.remote_scope) == ("generic", "other", "unknown", "unknown")
     assert lab.action == "apply_now" and lab.level == "unknown" and len(lab.reason) == 400
+
+
+def test_rate_limited_batch_waits_for_the_window_instead_of_failing(env, clock):
+    conn, cfg, notifier = env
+    seed(conn, clock, n=2)
+    calls, slept = [], []
+
+    class RateLimited(FakeRouter):
+        def complete(self, task, variables, schema=None, personal=False):
+            calls.append(1)
+            if len(calls) == 1:
+                raise LLMUnavailable("label", ["gemini/gemini-flash-lite-latest: skipped (rpm quota)"])
+            return super().complete(task, variables, schema, personal)
+
+    res = label.run(conn, clock, cfg, RateLimited(), notifier, sleep=slept.append)
+    assert res.labeled == 2 and res.failed_batches == 0 and slept == [label.RATE_WAIT_S]
+
+
+def test_other_failures_are_not_retried(env, clock):
+    conn, cfg, notifier = env
+    seed(conn, clock, n=2)
+    slept = []
+    res = label.run(conn, clock, cfg, FakeRouter(fail=True), notifier, sleep=slept.append)
+    assert res.failed_batches == 1 and slept == []
