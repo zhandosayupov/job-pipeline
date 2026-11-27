@@ -30,8 +30,24 @@ TECH = [
     "Valgrind", "GDB", "Boost", "STL", "Qt", "Solidity", "Nginx",
 ]
 _TECH_RX = [(t, re.compile(rf"(?<![\w+#.]){re.escape(t)}(?![\w+#])", re.I if len(t) > 2 else 0)) for t in TECH]
-_GAP = re.compile(r"\b(?:not|haven't|have not|no (?:production )?experience|never|yet to|learning|new to|"
-                  r"не\b|нет опыта|не работал|изучаю)", re.I)
+# An honest gap is a negation OF USING the technology, right before it ("I have not used Rust",
+# "no production experience with Go"). A negation elsewhere in the sentence ("never doubted my Rust",
+# "in Rust, not Python") exempts nothing (S3 review).
+_GAP_PHRASE = (r"(?:(?:have|has|had|did)\s?n[o']t\s+(?:yet\s+)?(?:used|worked\s+(?:with|in)|written|shipped)|"
+               r"not\s+(?:yet\s+)?(?:used|worked\s+(?:with|in))|never\s+(?:used|worked\s+(?:with|in)|written)|"
+               r"no\s+(?:production\s+|commercial\s+|hands-on\s+)?experience\s+(?:with|in)|yet\s+to\s+(?:use|learn)|"
+               r"(?:currently\s+)?learning|new\s+to|не\s+работал[аи]?\s+с|нет\s+(?:коммерческого\s+)?опыта"
+               r"(?:\s+работы)?\s+(?:с|в)|изучаю)")
+
+
+def _gap_before(sent: str, tech_rx: re.Pattern) -> bool:
+    for m in tech_rx.finditer(sent):
+        head = sent[: m.start()]
+        if re.search(_GAP_PHRASE + r"\W+(?:[\w+#.-]+\W+){0,3}$", head, re.I):
+            return True
+    return False
+
+
 _NUMBER = re.compile(r"(?<![\w.])(\d+(?:[.,]\d+)?)\s?(%|x|×|k|K|M|B|bn|billion|million|thousand|млрд|млн|тыс)?"
                      r"(?![\w.]*\d)")
 _YEAR = re.compile(r"\b(19[89]\d|20[0-4]\d)\b")
@@ -124,7 +140,6 @@ class TruthGate:
     def check(self, text: str) -> TruthReport:
         rep = TruthReport()
         for sent in _sentences(text):
-            gap = bool(_GAP.search(sent))
             for m in _EXPERIENCE.finditer(sent):
                 n = float(m.group(1).replace(",", "."))
                 rep.claims.append(Claim("experience", m.group(0), n <= self.experience_years + 0.01))
@@ -142,8 +157,7 @@ class TruthGate:
             for name, rx in _TECH_RX:
                 if rx.search(sent):
                     known = name.lower() in self.tech or (name.lower() == "go" and "golang" in self.tech)
-                    in_job = name.lower() in self.extra
-                    rep.claims.append(Claim("tech", name, known or gap or (in_job and gap)))
+                    rep.claims.append(Claim("tech", name, known or _gap_before(sent, rx)))
             for m in _EMPLOYER.finditer(sent):
                 org = m.group(1).strip().rstrip(".,")
                 ok = any(org.lower().startswith(e) or e.startswith(org.lower()) for e in self.employers)
