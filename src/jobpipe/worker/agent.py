@@ -34,7 +34,7 @@ class WorkerCfg:
     headless: bool = True
     min_idle_s: float = 300             # owner away from the keyboard this long before applying
     require_ac: bool = True
-    captcha_wait_s: float = 600         # how long to wait for the owner to solve a captcha
+    captcha_wait_s: float = 420         # must stay well below the 600 s lease (queue.lease_seconds)
 
 
 class Core:
@@ -97,11 +97,22 @@ class Worker:
                 {"clicked": False, "error": f"no applier for {platform}"}
             return self.core.result(task, kind, res, None)
         page = self.page_factory(platform)
+        self._clicking = False
         try:
             applier = Applier(acfg, page)
             if task["type"] == "apply.fill":
                 return self._fill(task, applier, page, tmp, shot)
             return self._submit(task, applier, page, tmp, shot)
+        except Exception as e:   # Playwright timeouts etc.: always report, never leave the app hanging
+            log.exception("task failed")
+            _safe_shot(page, shot)
+            err = f"{type(e).__name__}: {str(e)[:200]}"
+            if task["type"] == "apply.fill":
+                return self.core.result(task, "fill", {"ok": False, "error": err}, shot)
+            # during or after the click the outcome is unknown; before it nothing went out
+            res = ({"clicked": True, "confirmed": False, "error": err} if self._clicking
+                   else {"clicked": False, "error": err})
+            return self.core.result(task, "submit", res, shot)
         finally:
             page.close()
 
@@ -149,7 +160,10 @@ class Worker:
                                                      "new_fields": [f.model_dump() for f in fields]}, shot)
         if self.core.heartbeat({"state": "about to submit"}).get("paused"):
             return self.core.result(task, "submit", {"clicked": False, "error": "paused before the click"}, shot)
+        self._clicking = True
         try:
+            # Applier.submit raises ApplyError only before the click (missing selector); anything raised
+            # during or after the click goes through handle() as clicked=True (unknown outcome).
             confirmed = applier.submit()
         except ApplyError as e:
             _safe_shot(page, shot)
@@ -193,6 +207,9 @@ class Worker:
                     self.handle(task)
             except httpx.HTTPError as e:
                 log.warning("core unreachable: %s", type(e).__name__)
+                self.sleep(30)
+            except Exception:
+                log.exception("worker loop error")
                 self.sleep(30)
 
 

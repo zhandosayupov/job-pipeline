@@ -73,10 +73,18 @@ class WorkerAPI:
                 return None
             q = Queue(conn, self.clock, self.cfg.settings.queue)
             q.reclaim_expired()
-            t = q.lease(f"worker:{worker[:64]}", TASK_TYPES)
-            if t is None:
-                return None
-            return {"task_id": t.id, "type": t.type, **t.payload}
+            while True:
+                t = q.lease(f"worker:{worker[:64]}", TASK_TYPES)
+                if t is None:
+                    return None
+                if t.type == ap.SUBMIT and conn.execute("SELECT reclaims FROM tasks WHERE id = ?",
+                                                         (t.id,)).fetchone()[0]:
+                    # Its lease expired with no result: the click may have happened. Never hand it out
+                    # again (no blind retry of a submit); the owner decides (S4 review).
+                    ap.submit_lost(conn, self.clock, self.notifier, t.payload["app_id"])
+                    q.complete(t.id)
+                    continue
+                return {"task_id": t.id, "type": t.type, **t.payload}
 
     def resolve(self, app_id: str, fields: list[dict]) -> dict:
         kb = self.kb_loader() if self.kb_loader else None
