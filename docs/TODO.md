@@ -12,6 +12,18 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
 
 ## Sources not in S1
 
+- **Sites rendered by JavaScript: parse later in the browser worker** (the laptop, Playwright, ADR 0006).
+  These are read-only page loads, paced like `Http`, honouring robots.txt; a captcha or 403/429 still
+  stops the site. Planned as a `worker.scrape` task type with one small parser per site:
+  * Big tech: Apple (jobs.apple.com), Microsoft (careers.microsoft.com), Netflix (jobs.netflix.com),
+    ByteDance/TikTok (jobs.bytedance.com).
+  * AI: Mistral (mistral.ai/careers).
+  * Quant and crypto: D. E. Shaw, QRT, Wintermute, Auros.
+  * Kazakhstan: inDrive (careers.indrive.com), Halyk Bank, Halyk Finance.
+  * Boards: getmatch, Remowork; Booking.com, SIG and Spotify (their sitemaps have no vacancy pages).
+- **dsml.kz/jobs** (KZ data/ML board): robots.txt allows it, and its sitemap lists 54 job category
+  pages, but `/jobs` and the category pages answered 429 on 2026-11-27. Retry later from the laptop
+  worker at a slow pace; if it still answers 429, ask the site for access.
 - **Owner's list, checked on 2026-11-27, not collected** (the reason in brackets):
   * 403 to our requests, so we stop (ADR 0012): Citadel, Citadel Securities, Two Sigma, Astana Hub.
   * No vacancy pages with JobPosting in the sitemap: Booking.com, SIG, Spotify, Halyk Bank, Halyk Finance, Nebius careers (Nebius is collected through Greenhouse instead).
