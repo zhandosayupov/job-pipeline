@@ -43,8 +43,9 @@ cards to act on, and a guarantee that target firms (the protected pool) are neve
   with the provider limits in `llm.yaml`.
 * Labels are only as good as the excerpt (700 characters); S3 may label shortlisted jobs again with the
   full text before tailoring.
-* **No points from a rejected claim** (S2 review): when neither a visa nor a remote claim survives the
-  quote check, `legal` is capped at the rubric's "unknown" value (8), so an unquoted claim cannot
-  push a job over the shortlist or alert threshold.
+* **No points from a rejected claim** (S2 review): `legal` is capped at the rubric's best value for
+  the visa and remote claims that survived the quote check (`legal_cap`): a fabricated sponsorship
+  quote next to a quoted "remote EMEA" is worth 12; nothing verified is worth "unknown" (8). An
+  unquoted claim cannot push a job over the shortlist or alert threshold.
 * A job the model leaves out of its answer 3 times is dropped with `drop_rule = label_missing`
   instead of costing tokens every run. `/rate` stops after the 30-label sample.
