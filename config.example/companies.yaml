@@ -132,3 +132,22 @@ companies:
   - {name: Miro, ats: ashby, token: miro, priority: 3}
   # Kazakhstan
   - {name: BCC (Bank CenterCredit), ats: greenhouse, token: bcc, priority: 1}
+
+  # --- added 2026-11-27 from the owner's list (each board checked: jobs > 0) ---
+  # Kazakhstan
+  - {name: Higgsfield AI, ats: ashby, token: higgsfieldai, priority: 1}
+  - {name: Freedom24 (Freedom Holding), ats: workable, token: freedomfinanceeu, priority: 1}
+  # Trading, quant, crypto
+  - {name: Five Rings, ats: greenhouse, token: fiveringsllc, priority: 1}
+  - {name: Mako, ats: greenhouse, token: mako, priority: 1}
+  - {name: Squarepoint, ats: greenhouse, token: squarepointcapital, priority: 1}
+  - {name: GSR, ats: greenhouse, token: gsrmarkets, priority: 1}
+  - {name: Flowdesk, ats: greenhouse, token: flowdesk, priority: 1}
+  - {name: Jump Crypto, ats: greenhouse, token: jumpcrypto, priority: 1}
+  - {name: Amber Group, ats: lever, token: ambergroup, priority: 1}
+  - {name: Binance, ats: greenhouse, token: binance, priority: 2}
+  - {name: Bybit, ats: greenhouse, token: bybit, priority: 2}
+  - {name: OKX, ats: greenhouse, token: okx, priority: 2}
+  # AI / ML
+  - {name: Hugging Face, ats: workable, token: huggingface, priority: 2}
+
