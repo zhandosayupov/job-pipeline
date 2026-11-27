@@ -18,14 +18,16 @@ plan: [docs/plan.html](docs/plan.html) · parked for later: [docs/TODO.md](docs/
 | S2 | LLM labeling, shortlist, protected pool, Telegram cards with buttons, `/rate` | in review (stacked on S1) |
 | S3 | knowledge base, truth gate, CV tailoring (LaTeX), cover letter, approval cards | in review (stacked on S2) |
 | S4 | worker API, form resolution, two-phase submit, laptop worker (Playwright), Greenhouse/Lever/Ashby/hh appliers | in review (stacked on S3) |
-| S5–S6 | inbox, hardening | planned |
+| S5 | Gmail inbox (IMAP), triage, funnel stages, reply drafts with Approve, hh alerts as a source, Telegram userbot | in review (stacked on S4) |
+| S6 | hardening | planned |
 
 ## Ground rules (enforced in code)
 
 * Every CV line, letter and answer comes from your fact base; unmatched claims block the item.
 * Applications are submitted automatically only when every check passes (not a protected company,
   every question answered from your KB, truth gate passed, dry run off, daily cap left); otherwise
-  you get an approval card. Messages to people always wait for your Approve on sensitive topics.
+  you get an approval card. Code never sends a message: approved replies become Gmail/Telegram
+  drafts that you send; sensitive questions get your own answer or a placeholder.
 * One application per vacancy, ever. Every external side effect is journaled before it happens.
 * Everything carries an attention tag (`ok` / `needs_human` / `not_ok`), so you see what needs you.
 * Old detail is deleted or compacted to a resolution every night: the VM has 1 GB RAM.

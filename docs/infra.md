@@ -158,3 +158,20 @@ provider that does not train on prompts. Without `tectonic` installed the card c
    ```
 4. **Dry runs first**: every platform starts with DRY_RUN on. Approve a CV card, wait for `jp run apply`
    (or run it), check the dry-run report and screenshot. After 10 correct dry runs: `/dryrun hh off`.
+
+## Inbox (S5)
+
+1. **Gmail app password**: Google Account → Security → 2-Step Verification → App passwords. Then on the VM:
+   ```bash
+   sudo -u jobpipe nano /etc/jobpipe/secrets.env      # GMAIL_APP_PASSWORD=<the 16-letter app password>
+   sudo -u jobpipe nano /var/lib/jobpipe/config/settings.yaml   # inbox.gmail_user (or the email in kb/profile.yaml)
+   jp run inbox                                      # first run reads the last 14 days, job mail only
+   ```
+   Read `/inbox` after the first runs: rules were checked on synthetic mail only.
+2. **Telegram userbot** (laptop, secondary account): get API id/hash at my.telegram.org, add
+   `TG_API_ID` and `TG_API_HASH` to `worker.env`, then:
+   ```powershell
+   uv sync --group userbot
+   uv run jobpipe userbot --login
+   powershell -ExecutionPolicy Bypass -File ops\worker\install-worker.ps1 -Userbot
+   ```

@@ -85,6 +85,15 @@ class Collector:
             control.finish_run(self.conn, self.clock, run_id, status, {r.source: r.status for r in results})
         return results
 
+    def ingest_postings(self, source: str, postings: list[Posting]) -> SourceResult:
+        """Postings found elsewhere (job-alert e-mails, S5) go through the same prefilter and dedupe."""
+        started = iso(self.clock.now())
+        res = SourceResult(source, "ok", fetched=len(postings))
+        for p in postings:
+            self._ingest(p, res)
+        self._record_run(res, started)
+        return res
+
     # --- one source ----------------------------------------------------------------------
 
     def _run_source(self, name: str) -> SourceResult:

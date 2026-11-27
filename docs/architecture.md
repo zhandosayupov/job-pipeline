@@ -77,7 +77,7 @@ src/jobpipe/
     notifier/  telegram (Bot API over httpx, used by oneshot jobs)
     sources/   one module per source (S1)
     appliers/  hh, greenhouse, lever, ashby (S4)
-    inbox/     gmail_imap, hh_chat, telegram_userbot (S5)
+    inbox/     gmail_imap (IMAP, read-only + drafts), mail (parse, reply drafts) (S5)
   services/    state transitions + events, task queue, LLM router, control (pause/kill), pii
   workers/     queue runner and task handlers
   bot/         aiogram app, owner-only middleware, status rendering
@@ -116,7 +116,9 @@ See [ADR 0005](adr/0005-public-repo-private-home.md).
 | `source_runs` | one row per source per collect run: status, fetched, new, kept, dropped, closed, errors |
 | `source_cursors` | per-source cursors (e.g. last Telegram post id per channel) |
 | `applications` | one row per (job) application, `state`, unique `idempotency_key` |
-| `conversations` | one row per thread with a recruiter, `state` |
+| `conversations` | one row per thread with a recruiter (Gmail thread or Telegram chat), `state`, linked `application_id`, the current draft in `data_json` |
+| `messages` | job-related mail and chat messages only: headers, category, triage, body (dropped after 120 days); `processed_at` (S5, [ADR 0023](adr/0023-inbox.md)) |
+| `workers` | laptop worker and userbot heartbeats (S4) |
 | `tasks` | the queue: type, payload, status, attempts, `reclaims`, `next_run_at`, lease, unique `idempotency_key`, `last_error` |
 | `side_effects` | key stored **before** any external action; status `planned → done / unknown / failed`; `notified_at` for unknown-outcome alerts |
 | `control` | key/value switches: `paused`, `dry_run.<platform>` |
@@ -288,6 +290,9 @@ from config from S1 on.
 * Idempotency: one application per (company, vacancy) forever; cooldowns only where configured;
   similar roles at the same company produce a warning ([ADR 0009](adr/0009-idempotency.md)).
 * `DRY_RUN` defaults to true per platform; flipping it is an explicit command.
+* Code never sends a message: approved replies become Gmail or Telegram drafts the owner sends;
+  sensitive questions get the owner's verbatim answer or a placeholder, never generated text
+  ([ADR 0023](adr/0023-inbox.md)).
 * Captcha, 2FA or a security check pauses the task and asks the owner to solve it in the visible
   worker window; no solvers, proxy rotation or fingerprint changes ([ADR 0012](adr/0012-captcha-human.md)).
 * Logs are JSON lines to journald; emails and phone numbers of third parties and every secret value
@@ -319,3 +324,4 @@ from config from S1 on.
 | [0020](adr/0020-labeling-shortlist.md) | LLM labeling with verified output, shortlist, protected pool, cards, rating |
 | [0021](adr/0021-kb-truth-tailoring.md) | knowledge base, deterministic truth gate, tailoring plan, LaTeX, letter, approval |
 | [0022](adr/0022-applying.md) | worker API, form resolution on the VM, manifest hash, two-phase submit, appliers |
+| [0023](adr/0023-inbox.md) | inbox: job-related mail only, triage, forward-only funnel moves, drafts the owner sends, userbot |

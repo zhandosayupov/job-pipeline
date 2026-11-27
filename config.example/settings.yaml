@@ -39,6 +39,7 @@ retention:                  # ADR 0018: daily at 04:00; `jobpipe run retention -
   jobs_compact_days: 30     # finished jobs keep only keep_fields + resolution
   applications_compact_days: 180
   side_effects_compact_days: 90
+  messages_compact_days: 120   # mail text dropped, headers + category kept
   keep_fields:
     job: [company, title, url, fingerprint, source]
     application: [company, title, url, platform]
@@ -57,3 +58,12 @@ http:
   port: 8080
 
 log_level: INFO
+
+inbox:                      # S5 (ADR 0023): Gmail over IMAP with an app password (GMAIL_APP_PASSWORD)
+  gmail_user: null          # the mailbox to read; null = the email in kb/profile.yaml
+  first_run_days: 14        # the first run reads this far back, never the whole mailbox
+  max_per_run: 200
+  ghosted_after_days: 21    # applied, no reply this long -> ghosted
+  # Only job-related mail is read further: replies in tracked threads, these senders, or job words.
+  alert_senders: [hh.kz, hh.ru, jobalerts-noreply@linkedin.com]
+  ignore_senders: []        # never read, e.g. a newsletter that mentions jobs

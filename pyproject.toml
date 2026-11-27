@@ -29,6 +29,10 @@ dev = [
 worker = [
   "playwright>=1.48",
 ]
+# The laptop Telegram userbot only (S5): uv sync --group userbot
+userbot = [
+  "telethon>=1.36",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/jobpipe"]

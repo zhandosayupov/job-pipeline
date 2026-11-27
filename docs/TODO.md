@@ -37,6 +37,13 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
 - **Ashby comboboxes** and other custom widgets may need platform-specific fill code.
 - **Live selector check**: a weekly dry run per platform that alerts when a selector stops matching.
 
+## Inbox (after S5)
+
+- **hh.kz chat** read in the browser worker (today: hh e-mail notifications are triaged, replies go on hh).
+- **LinkedIn job-alert e-mails** as postings (company is plain text, not a link: needs a parser).
+- **Answer a placeholder from Telegram**: reply to the card with the value instead of editing in Gmail.
+- **Calendar slots** for interview invites instead of the `[[ВПИШИ: удобное время]]` placeholder.
+
 ## Production
 
 - **Production checks that alert when something breaks.** Unit tests only cover the code; on the

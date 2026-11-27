@@ -30,16 +30,42 @@ def _notifier(cfg: AppConfig) -> Notifier:
     return LogNotifier()
 
 
-def _router_factory(cfg: AppConfig, conn):
+def _router_factory(cfg: AppConfig, conn, kb=None):
+    """Router factory; with a KB, its personal values are pseudonymized in every personal request."""
     def make():
         from .adapters.llm.openai_compat import OpenAICompatTransport
         from .services.llm_router import Router
         from .services.prompts import PromptStore
 
-        return Router(conn, SystemClock(), cfg.llm, cfg.secrets, OpenAICompatTransport(),
+        llm = cfg.llm
+        if kb is not None:
+            llm = llm.model_copy(update={"pii_values": {**llm.pii_values, **kb.pii_values()}})
+        return Router(conn, SystemClock(), llm, cfg.secrets, OpenAICompatTransport(),
                       PromptStore(cfg.paths.prompts_dir))
 
     return make
+
+
+def _kb(cfg: AppConfig):
+    """The knowledge base, or None (with a log line) when it is missing or invalid."""
+    from .services import kb as kbmod
+
+    try:
+        return kbmod.load(cfg.paths.home / "kb")
+    except Exception as e:
+        log.warning("knowledge base not loaded", extra={"data": {"error": f"{type(e).__name__}: {str(e)[:200]}"}})
+        return None
+
+
+def _mailbox_factory(cfg: AppConfig, kb):
+    """GmailImap factory, or None when the mailbox is not configured (no app password)."""
+    from .adapters.inbox.gmail_imap import GmailImap
+
+    password = cfg.secrets.get("GMAIL_APP_PASSWORD")
+    user = cfg.settings.inbox.gmail_user or (kb.profile.email if kb else None)
+    if not password or not user:
+        return None
+    return lambda: GmailImap(user, password.replace(" ", ""), cfg.settings.inbox.imap_host)
 
 
 # --- commands ------------------------------------------------------------------------
@@ -95,8 +121,22 @@ def cmd_run(cfg: AppConfig, args) -> int:
         from .workers.handlers import HANDLERS
         from .workers.runner import Runner
 
+        kb_cache: list = []
+
+        def kb_once():
+            if not kb_cache:
+                kb_cache.append(_kb(cfg))
+            return kb_cache[0]
+
+        def mailbox():
+            factory = _mailbox_factory(cfg, kb_once())
+            if factory is None:
+                raise RuntimeError("Gmail is not configured: GMAIL_APP_PASSWORD in secrets.env")
+            return factory()
+
         runner = Runner(conn, SystemClock(), cfg, HANDLERS, _notifier(cfg),
-                        services={"router": _router_factory(cfg, conn)})
+                        services={"router": lambda: _router_factory(cfg, conn, kb_once())(), "kb": kb_once,
+                                  "mailbox": mailbox})
         types = args.types.split(",") if args.types else None
         summary = runner.run(max_seconds=args.max_seconds, types=types)
         log.info("queue run finished", extra={"data": summary.__dict__})
@@ -118,6 +158,24 @@ def cmd_run(cfg: AppConfig, args) -> int:
         ids = apply.schedule(conn, SystemClock(), cfg, q, _notifier(cfg), limit=args.limit or 20)
         print(f"scheduled {len(ids)} application(s) for the worker" + (": " + ", ".join(ids) if ids else ""))
         return 0
+    if args.what == "inbox":
+        from .services import inbox
+        from .services.collect import Collector
+
+        kb = _kb(cfg)
+        notifier = _notifier(cfg)
+        mailbox = _mailbox_factory(cfg, kb)
+        if mailbox is None:
+            print("Gmail is not configured (GMAIL_APP_PASSWORD, inbox.gmail_user): only stored messages are "
+                  "processed", file=sys.stderr)
+        q = Queue(conn, SystemClock(), cfg.settings.queue)
+        res = inbox.run(conn, SystemClock(), cfg, kb, _router_factory(cfg, conn, kb)(), notifier, q, mailbox,
+                        collector=Collector(conn, SystemClock(), cfg, None, notifier))
+        cats = ", ".join(f"{k} {v}" for k, v in sorted(res.categories.items())) or "nothing new"
+        print(f"fetched {res.fetched}, stored {res.stored} (skipped {res.skipped} not job-related), processed "
+              f"{res.processed}: {cats}; drafts {res.drafts}, postings from alerts {res.postings}, "
+              f"ghosted {res.ghosted}, errors {res.errors}")
+        return 0 if not res.errors else 1
     if args.what == "tailor":
         from .adapters.llm.openai_compat import OpenAICompatTransport
         from .services import kb as kbmod
@@ -227,6 +285,28 @@ def cmd_worker(cfg: AppConfig, args) -> int:
         page.close()
         return 0
     worker.run_forever()
+    return 0
+
+
+def cmd_userbot(cfg: AppConfig, args) -> int:
+    """Telegram userbot on the laptop (needs: uv sync --group userbot). Reads recruiter chats, saves
+    approved replies as drafts; never sends."""
+    import os
+
+    from .config.settings import parse_env_file
+    from .worker import userbot
+
+    wdir = Path(args.dir).expanduser()
+    env = parse_env_file((wdir / "worker.env").read_text(encoding="utf-8")) if (wdir / "worker.env").exists() else {}
+    get = lambda k: env.get(k) or os.environ.get(k)  # noqa: E731
+    missing = [k for k in ("JOBPIPE_CORE_URL", "WORKER_TOKEN", "TG_API_ID", "TG_API_HASH") if not get(k)]
+    if missing:
+        print(f"set {', '.join(missing)} in {wdir / 'worker.env'}", file=sys.stderr)
+        return 1
+    ucfg = userbot.UserbotCfg(core_url=get("JOBPIPE_CORE_URL"), token=get("WORKER_TOKEN"),
+                              api_id=int(get("TG_API_ID")), api_hash=get("TG_API_HASH"),
+                              session=wdir / "userbot.session")
+    asyncio.run(userbot.login(ucfg) if args.login else userbot.serve(ucfg))
     return 0
 
 
@@ -404,6 +484,11 @@ def build_parser() -> argparse.ArgumentParser:
     wk.add_argument("--login", metavar="PLATFORM", help="open a visible browser to log in once (e.g. hh)")
     wk.add_argument("--login-url", help="page to open for --login, e.g. https://hh.kz/account/login")
     wk.set_defaults(fn=cmd_worker)
+
+    ub = sub.add_parser("userbot", help="Telegram userbot for recruiter chats on the laptop (S5)")
+    ub.add_argument("--dir", default="~/.jobpipe-worker", help="worker.env and the session file")
+    ub.add_argument("--login", action="store_true", help="log in once (phone + code), then exit")
+    ub.set_defaults(fn=cmd_userbot)
 
     kbp = sub.add_parser("kb", help="knowledge base tools")
     kbp.add_argument("action", choices=["check"])

@@ -40,6 +40,7 @@ COMMANDS = [
     BotCommand(command="funnel", description="Воронка"),
     BotCommand(command="sources", description="Источники"),
     BotCommand(command="rate", description="Оценить разметку"),
+    BotCommand(command="inbox", description="Переписка с рекрутерами"),
     BotCommand(command="pause", description="Стоп всех внешних действий"),
     BotCommand(command="resume", description="Снять паузу"),
     BotCommand(command="help", description="Список команд"),
@@ -52,6 +53,7 @@ HELP = (
     "/funnel — сколько вакансий и заявок на каждом этапе\n"
     "/sources — последний запуск каждого источника\n"
     "/rate — оценить случайную разметку (👍/👎), считает % согласия\n"
+    "/inbox — переписка с рекрутерами; черновики ответов ждут кнопки «В черновики»\n"
     "/protect <компания> · /unprotect <компания> — protected pool\n"
     "/dryrun <платформа> on|off — DRY_RUN для подачи\n"
     "/reload — перечитать конфиг\n"
@@ -184,6 +186,13 @@ class BotService:
         order = ["discovered", "prefiltered", "labeled", "shortlisted", "skipped", "dropped", "closed"]
         lines = ["Вакансии: " + ", ".join(f"{s} {jobs[s]}" for s in order if jobs.get(s))]
         lines.append("Заявки: " + (", ".join(f"{k} {v}" for k, v in sorted(apps.items())) or "нет"))
+        sent = sum(apps.get(s, 0) for s in ("applied", "replied", "screening", "interview", "offer", "rejected",
+                                            "ghosted"))
+        if sent:
+            answered = sum(apps.get(s, 0) for s in ("replied", "screening", "interview", "offer"))
+            lines.append(f"Отклики: {sent} · ответили {answered} ({round(100 * answered / sent)}%) · интервью "
+                         f"{apps.get('interview', 0) + apps.get('offer', 0)} · отказ {apps.get('rejected', 0)} · "
+                         f"тишина {apps.get('ghosted', 0)}")
         if total:
             lines.append(f"Оценка разметки: согласен {up}/{total} ({round(100 * up / total)}%)")
         return "\n".join(lines)
@@ -205,6 +214,34 @@ class BotService:
 
         with self._conn() as conn:
             return owner_decision(conn, self.clock, Queue(conn, self.clock, self.cfg.settings.queue), action, rowid)
+
+    def message_decision(self, action: str, rowid: int) -> str:
+        from ..services.inbox import message_decision
+
+        with self._conn() as conn:
+            return message_decision(conn, self.clock, Queue(conn, self.clock, self.cfg.settings.queue), action, rowid)
+
+    def inbox_text(self, limit: int = 15) -> str:
+        from ..services.inbox import clean_approvals
+
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT c.state, c.channel, c.data_json, c.updated_at, j.company, j.title FROM conversations c "
+                "LEFT JOIN applications a ON a.id = c.application_id LEFT JOIN jobs j ON j.id = a.job_id "
+                "ORDER BY c.state = 'draft_ready' DESC, c.updated_at DESC LIMIT ?", (limit,)).fetchall()
+            clean, total = clean_approvals(conn)
+        if not rows:
+            return "Переписок пока нет."
+        icon = {"draft_ready": "✍️", "approved": "📥", "waiting": "⏳", "sent": "📤", "triaged": "🗂", "new": "🆕"}
+        lines = ["Переписка (сначала ждущие тебя):"]
+        for r in rows:
+            d = json.loads(r["data_json"] or "{}")
+            who = f"{r['company']} — {r['title']}" if r["company"] else (d.get("name") or d.get("counterpart") or "?")
+            lines.append(f"{icon.get(r['state'], '•')} {r['state']}: {who} · {d.get('subject', '')[:60]}")
+        if total:
+            lines.append(f"Черновики, отправленные без правок: {clean}/{total} "
+                         f"(L2 для ответов — после {self.cfg.policy.l2_min_clean_approvals})")
+        return "\n".join(lines)
 
     def rate_next(self):
         from ..services.cards import next_rating_card
@@ -316,6 +353,19 @@ def build_dispatcher(service: BotService, owner_id: int) -> Dispatcher:
         if cb.message is not None:
             await cb.message.edit_reply_markup(reply_markup=None)
             await cb.message.answer(result)
+
+    @dp.callback_query(F.data.startswith("m:"))
+    async def _message_button(cb: CallbackQuery) -> None:
+        _, action, rowid = cb.data.split(":", 2)
+        result = await asyncio.to_thread(service.message_decision, action, int(rowid))
+        await cb.answer(result[:190])
+        if cb.message is not None:
+            await cb.message.edit_reply_markup(reply_markup=None)
+            await cb.message.answer(result)
+
+    @dp.message(Command("inbox"))
+    async def _inbox(message: Message) -> None:
+        await message.answer(await asyncio.to_thread(service.inbox_text), disable_web_page_preview=True)
 
     @dp.callback_query(F.data.startswith("r:"))
     async def _rate_button(cb: CallbackQuery) -> None:
