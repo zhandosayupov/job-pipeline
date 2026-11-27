@@ -24,6 +24,7 @@ ROUTES = {
     "www.amazon.jobs": "amazon_nl.json",
     "career.habr.com": "habr_cpp.html",
     "api.hh.ru": "hh_vacancies.json",
+    "apply.workable.com": "workable_huggingface.json",
     "job.kaspi.kz": None,                       # sitemap or vacancy page, by path (careers)
     "nvidia.wd5.myworkdayjobs.com": None,       # search or job detail, by path (workday)
 }
@@ -61,6 +62,7 @@ CONTEXTS = {
     "greenhouse": lambda: SourceContext(companies=[company("IMC", "imc")]),
     "ashby": lambda: SourceContext(companies=[company("ClickHouse", "clickhouse")]),
     "lever": lambda: SourceContext(companies=[company("Spotify", "spotify")]),
+    "workable": lambda: SourceContext(companies=[company("Hugging Face", "huggingface")]),
     "amazon": lambda: SourceContext(params={"countries": ["NLD"], "max_pages": 1}),
     "telegram": lambda: SourceContext(params={"channels": ["forcpp"]}),
     "hh": lambda: SourceContext(params={"contact": "jobpipe-test/0.1 (owner)", "areas": ["kz"], "queries": ["c++"]}),

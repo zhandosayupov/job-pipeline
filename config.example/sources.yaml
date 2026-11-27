@@ -16,6 +16,7 @@ sources:
   greenhouse: {enabled: true}
   ashby: {enabled: true}
   lever: {enabled: true}
+  workable: {enabled: true}
 
   amazon:
     enabled: true
@@ -56,6 +57,8 @@ sources:
       sites:
         - {key: kaspi, company: Kaspi.kz, sitemap: "https://job.kaspi.kz/sitemap/vacancies.xml", max_new: 40}
         - {key: meta, company: Meta, sitemap: "https://www.metacareers.com/jobsearch/sitemap.xml", max_new: 40}
+        - {key: gresearch, company: G-Research, sitemap: "https://www.gresearch.com/sitemap_index.xml",
+           index: "vacancies-sitemap", max_new: 40}
         # relocate.me: jobs with relocation packages; the company comes from each page's JobPosting
         - {key: relocate, company: relocate.me, sitemap: "https://relocate.me/sitemap-jobs.xml", max_new: 30}
 

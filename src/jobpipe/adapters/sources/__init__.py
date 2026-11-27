@@ -5,7 +5,7 @@ sources.yaml."""
 from __future__ import annotations
 
 from .aggregators import Amazon, Arbeitnow, Himalayas, Jobicy, WeWorkRemotely
-from .ats import Ashby, Greenhouse, Lever
+from .ats import Ashby, Greenhouse, Lever, Workable
 from .base import FetchOutcome, Source, SourceContext
 from .careers import CareerSites, Workday
 from .community import HackerNews, TelegramChannels
@@ -17,6 +17,7 @@ SOURCES: dict[str, type] = {
         Greenhouse,
         Ashby,
         Lever,
+        Workable,
         Amazon,
         Himalayas,
         Jobicy,
@@ -30,6 +31,6 @@ SOURCES: dict[str, type] = {
         HeadHunter,
     )
 }
-ATS_SOURCES = {"greenhouse", "ashby", "lever"}  # driven by companies.yaml
+ATS_SOURCES = {"greenhouse", "ashby", "lever", "workable"}  # driven by companies.yaml
 
 __all__ = ["ATS_SOURCES", "SOURCES", "FetchOutcome", "Source", "SourceContext"]
