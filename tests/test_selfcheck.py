@@ -94,3 +94,21 @@ def test_digest_carries_funnel_metrics(app_cfg, clock):
     add_app(conn, clock, "Acme", "C++ Engineer")
     d = digest.build(conn, clock, "Asia/Almaty", 40)
     assert "Воронка: подано 1" in d.messages[0]
+
+
+def test_unfinished_source_run_is_a_failing_check_not_a_crash(app_cfg, clock):
+    from jobpipe.config.settings import SourceCfg, SourcesCfg
+
+    conn = open_db(app_cfg.paths.db_path, clock)
+    app_cfg.sources = SourcesCfg(sources={"himalayas": SourceCfg(enabled=True)})
+    conn.execute("INSERT INTO source_runs(source, started_at, status) VALUES ('himalayas', '2026-11-26T05:00:00Z', "
+                 "'running')")
+    bad = {c.name: c for c in selfcheck.gather(conn, clock, app_cfg) if not c.ok}
+    assert "never finished" in bad["source.himalayas"].detail
+
+
+def test_flag_of_a_vanished_check_is_cleared(app_cfg, clock):
+    conn = open_db(app_cfg.paths.db_path, clock)
+    control.set_flag(conn, clock, "selfcheck.worker.old-laptop", "fail")
+    selfcheck.run(conn, clock, app_cfg, RecordingNotifier())
+    assert control.get_flag(conn, "selfcheck.worker.old-laptop") == "gone"
