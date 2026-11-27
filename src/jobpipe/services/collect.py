@@ -108,14 +108,20 @@ class Collector:
         companies = (
             [c for c in self.cfg.companies.companies if c.ats == name and c.enabled] if name in ATS_SOURCES else []
         )
-        ctx = SourceContext(params=dict(scfg.params), companies=companies, cursors=self._cursors(name))
+        res = SourceResult(name, "ok")
+
+        def sink(batch: list[Posting]) -> None:
+            for p in batch:
+                self._ingest(p, res)
+
+        ctx = SourceContext(params=dict(scfg.params), companies=companies, cursors=self._cursors(name), sink=sink)
         try:
             outcome: FetchOutcome = cls().fetch(self.http, ctx)
         except Exception as e:  # a source bug must not stop the run
             outcome = FetchOutcome(errors=[f"{type(e).__name__}: {str(e)[:200]}"])
-        res = SourceResult(name, outcome.status, fetched=len(outcome.postings), errors=outcome.blocked + outcome.errors)
-        for p in outcome.postings:
+        for p in outcome.postings:          # a source that did not use units / the sink
             self._ingest(p, res)
+        res.status, res.fetched, res.errors = outcome.status, outcome.fetched, outcome.blocked + outcome.errors
         for unit, ids in outcome.complete_ids.items():
             res.closed += self._close_missing(unit, ids)
         self._save_cursors(name, ctx.cursors)

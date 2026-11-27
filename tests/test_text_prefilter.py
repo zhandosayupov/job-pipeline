@@ -118,7 +118,10 @@ AUTH = ["KZ", "AM", "KG", "BY", "RU"]
 def test_prefilter_rules(filters, posting, rule):
     d = decide(posting, filters, AUTH)
     assert d.rule == rule and d.keep == (rule is None)
-    assert "excerpt" in d.signals and "visa" in d.signals
+    if rule in ("title_not_eng", "title_excluded"):
+        assert d.signals == {}                 # title drops skip the full-text signals (speed)
+    else:
+        assert "excerpt" in d.signals and "visa" in d.signals
 
 
 def test_example_configs_load(tmp_path):

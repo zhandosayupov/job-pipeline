@@ -38,7 +38,7 @@ class HabrCareer:
     url = "https://career.habr.com/vacancies"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         for q in ctx.params.get("queries", ["c++"]):
 
             def unit(q=q):
@@ -77,7 +77,7 @@ class HeadHunter:
     url = "https://api.hh.ru/vacancies"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         contact = ctx.params.get("contact")
         if not contact:
             out.errors.append("hh: set params.contact (\"app/1.0 (your e-mail)\"): hh requires HH-User-Agent")

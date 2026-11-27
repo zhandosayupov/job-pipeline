@@ -21,7 +21,7 @@ class HackerNews:
     by_date = "https://hn.algolia.com/api/v1/search_by_date"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         story: dict = {}
 
         def find_story():
@@ -134,7 +134,7 @@ class TelegramChannels:
     url = "https://t.me/s/{channel}"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         for ch in ctx.params.get("channels", []):
 
             def unit(ch=ch):

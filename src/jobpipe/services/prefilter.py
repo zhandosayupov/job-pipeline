@@ -58,13 +58,15 @@ def signals(p: Posting) -> dict:
 
 
 def decide(p: Posting, f: FiltersCfg, work_authorized: list[str]) -> Decision:
-    sig = signals(p)
     title = p.title or ""
+    # Title rules first: they drop ~90% of postings, and the text signals below read the whole
+    # description (the first live collect of 15k postings ran out of its 20-minute window).
     if f.title_include and not first_match(f.title_include, title):
-        return Decision(False, "title_not_eng", None, sig)
+        return Decision(False, "title_not_eng", None, {})
     hit = first_match(f.title_exclude, title)
     if hit and not first_match(f.title_exclude_exceptions, title):
-        return Decision(False, "title_excluded", hit, sig)
+        return Decision(False, "title_excluded", hit, {})
+    sig = signals(p)
     hit = first_match(f.text_exclude, f"{title}\n{p.description}")
     if hit:
         return Decision(False, "text_excluded", hit, sig)

@@ -106,12 +106,16 @@ def short_hash(s: str) -> str:
     return hashlib.sha1(s.encode("utf-8")).hexdigest()[:16]
 
 
+_LETTER = re.compile(r"[^\W\d_]")
+_CYR = re.compile(r"[а-яё]", re.I)
+
+
 def detect_lang(text: str) -> str:
-    letters = [c for c in text[:3000] if c.isalpha()]
+    sample = text[:3000]
+    letters = len(_LETTER.findall(sample))
     if not letters:
         return "en"
-    cyr = sum("а" <= c.lower() <= "я" or c.lower() == "ё" for c in letters)
-    return "ru" if cyr / len(letters) > 0.3 else "en"
+    return "ru" if len(_CYR.findall(sample)) / letters > 0.3 else "en"
 
 
 # --- signals ------------------------------------------------------------------------------

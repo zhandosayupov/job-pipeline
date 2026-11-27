@@ -234,3 +234,25 @@ def test_hh_follows_pages_up_to_max_pages():
     out = SOURCES["hh"]().fetch(fixture_http({"api.hh.ru": hh}), ctx)
     assert pages == [0, 1] and len(out.postings) == 4
     assert out.postings[0].posted_at == "2026-11-26T05:00:00Z"          # hh's "+0500" offset
+
+
+def test_long_descriptions_keep_head_and_tail():
+    from jobpipe.adapters.sources.base import trim_description
+
+    text = "A" * 20000 + " Visa sponsorship is available."
+    out = trim_description(text)
+    assert len(out) < 12100 and out.startswith("A" * 100) and out.endswith("Visa sponsorship is available.")
+    assert trim_description("short") == "short"
+
+
+def test_units_are_streamed_to_the_sink_one_board_at_a_time():
+    from jobpipe.adapters.sources.base import FetchOutcome
+    from jobpipe.domain.job import Posting
+
+    batches = []
+    out = FetchOutcome(sink=lambda b: batches.append([p.id for p in b]))
+    for n in (1, 2):
+        out.run_unit(f"u{n}", lambda n=n: out.postings.extend(
+            Posting(source="s", kind="ats", source_job_id=f"{n}:{i}", company="C", title="T", url="https://x")
+            for i in range(n)))
+    assert batches == [["s:1:0"], ["s:2:0", "s:2:1"]] and out.postings == [] and out.fetched == 3
