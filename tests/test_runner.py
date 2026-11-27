@@ -46,11 +46,26 @@ def test_ok_task_completes(app_cfg, clock):
     assert q.get(tid).status == "done"
 
 
-def test_unknown_type_dead_letters_immediately(app_cfg, clock):
+def test_runner_takes_only_types_it_can_run(app_cfg, clock):
+    """Worker tasks (apply.fill, apply.submit) belong to the laptop: the VM queue run must not take
+    them, or it would dead-letter every application (bug found in S5)."""
+    runner, conn, notifier = make_runner(app_cfg, clock)
+    q = Queue(conn, clock, app_cfg.settings.queue)
+    fill, _ = q.enqueue("apply.fill", {"app_id": "a"})
+    other, _ = q.enqueue("nope")
+    ok, _ = q.enqueue("selftest.ok")
+    summary = runner.run(max_seconds=5)
+    assert summary.done == 1 and summary.dead == 0
+    assert q.get(fill).status == "pending" and q.get(other).status == "pending"
+    assert q.get(ok).status == "done"
+    assert not notifier.messages
+
+
+def test_unknown_type_dead_letters_when_asked_for_explicitly(app_cfg, clock):
     runner, conn, notifier = make_runner(app_cfg, clock)
     q = Queue(conn, clock, app_cfg.settings.queue)
     tid, _ = q.enqueue("nope")
-    assert runner.run(max_seconds=5).dead == 1
+    assert runner.run(max_seconds=5, types=["nope"]).dead == 1
     assert "no handler" in q.get(tid).last_error
     assert notifier.messages
 
