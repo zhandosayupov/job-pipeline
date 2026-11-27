@@ -12,6 +12,13 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
 
 ## Sources not in S1
 
+- **Owner's list, checked on 2026-11-27, not collected** (the reason in brackets):
+  * 403 to our requests, so we stop (ADR 0012): Citadel, Citadel Securities, Two Sigma, Astana Hub.
+  * No vacancy pages with JobPosting in the sitemap: Booking.com, SIG, Spotify, Halyk Bank, Halyk Finance, Nebius careers (Nebius is collected through Greenhouse instead).
+  * No sitemap, or the job pages are rendered by JavaScript: Apple, Microsoft, Netflix, ByteDance/TikTok, Mistral, D. E. Shaw, QRT, Wintermute, Auros.
+  * Uber: the sitemap leads to rider and driver pages (HTTP 406).
+  * Yandex: there is no jobs sitemap.
+  * KZ banks and telcos (Kcell, Beeline/QazCode, ForteBank, Bereke, Sergek): they post through hh.kz, so turn on the `hh` source.
 - **Career sites checked on 2026-11-27 and left out**:
   * Google: robots.txt disallows `/about/careers/applications/jobs/results`.
   * careers.indrive.com: vacancy pages came back empty (rendered by JavaScript), so they need the worker.
