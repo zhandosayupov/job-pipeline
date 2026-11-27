@@ -83,6 +83,13 @@ class WorkerAPI:
                 t = q.lease(f"worker:{worker[:64]}", types)
                 if t is None:
                     return None
+                if t.type == ap.SUBMIT and conn.execute("SELECT reclaims FROM tasks WHERE id = ?",
+                                                         (t.id,)).fetchone()[0]:
+                    # Its lease expired with no result: the click may have happened. Never hand it out
+                    # again (no blind retry of a submit); the owner decides (S4 review).
+                    ap.submit_lost(conn, self.clock, self.notifier, t.payload["app_id"])
+                    q.complete(t.id)
+                    continue
                 if t.type != "tg.draft":
                     return {"task_id": t.id, "type": t.type, **t.payload}
                 out = self._tg_draft_task(conn, q, t)
@@ -94,8 +101,14 @@ class WorkerAPI:
         (or is unknown): the task is completed without acting."""
         conv = conn.execute("SELECT data_json FROM conversations WHERE id = ?", (t.payload["conv_id"],)).fetchone()
         draft = json.loads(conv[0] or "{}").get("draft") if conv else None
-        if not draft or not control.SideEffects(conn, self.clock).plan(t.payload["key"], "tg_draft",
-                                                                       {"conv_id": t.payload["conv_id"]}):
+        se = control.SideEffects(conn, self.clock)
+        if not draft or not se.plan(t.payload["key"], "tg_draft", {"conv_id": t.payload["conv_id"]}):
+            if se.status(t.payload["key"]) == "planned":
+                # handed out before and never reported (userbot died): unknown, and the owner is told
+                se.mark(t.payload["key"], "unknown")
+                if self.notifier is not None:
+                    self.notifier.send("❓ Userbot пропал, не сообщив, сохранён ли черновик в Telegram. Проверь "
+                                       f"чат; повторить: jobpipe effects resolve {t.payload['key']} reset")
             q.complete(t.id)
             return None
         return {"task_id": t.id, "type": t.type, "app_id": t.payload["conv_id"], "key": t.payload["key"],
