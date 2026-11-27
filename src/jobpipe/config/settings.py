@@ -78,6 +78,18 @@ class HttpCfg(_Model):
     port: int = 8080
 
 
+class LabelCfg(_Model):
+    batch_size: int = 20                 # jobs per LLM request (each request stays far below 100k tokens)
+    max_jobs_per_run: int = 200
+    daily_max_jobs: int = 600            # budget guard: labeling stops for the day after this many
+    shortlist_threshold: int = 60        # score at or above, and action != skip -> shortlisted
+    alert_threshold: int = 80            # instant Telegram card
+    # Who the labels are for. Keep personal details here only, never in the repo.
+    profile: str = ("Software engineer, about 3 years of C++ and backend experience. Prefers low-latency, "
+                    "trading, search, infrastructure and distributed-systems roles.")
+
+
+
 class Settings(_Model):
     timezone: str = "Asia/Almaty"
     telegram: TelegramCfg = TelegramCfg()
@@ -85,6 +97,7 @@ class Settings(_Model):
     runner: RunnerCfg = RunnerCfg()
     backup: BackupCfg = BackupCfg()
     retention: RetentionCfg = RetentionCfg()
+    label: LabelCfg = LabelCfg()
     http: HttpCfg = HttpCfg()
     log_level: str = "INFO"
 
@@ -281,6 +294,24 @@ class FiltersCfg(_Model):
     onsite_excluded_locations: list[str] = Field(default_factory=list)
 
 
+# --- protected.yaml, label settings (S2) -----------------------------------------------
+
+
+class ProtectedEntry(_Model):
+    """A company that never gets automatic actions (spec §11)."""
+
+    name: str
+    aliases: list[str] = Field(default_factory=list)
+    domains: list[str] = Field(default_factory=list)       # careers/ATS hosts, e.g. imc.com
+    ats_tokens: list[str] = Field(default_factory=list)    # board tokens, e.g. imc, optiverprivate
+    reason: Literal["target_tier1", "active_process", "cooldown", "manual"] = "manual"
+    until: str | None = None                                # YYYY-MM-DD; after it the entry is ignored
+
+
+class ProtectedCfg(_Model):
+    companies: list[ProtectedEntry] = Field(default_factory=list)
+
+
 # --- secrets -------------------------------------------------------------------------
 
 
@@ -342,6 +373,7 @@ class AppConfig:
     sources: SourcesCfg = field(default_factory=SourcesCfg)
     companies: CompaniesCfg = field(default_factory=CompaniesCfg)
     filters: FiltersCfg = field(default_factory=FiltersCfg)
+    protected: ProtectedCfg = field(default_factory=ProtectedCfg)
 
 
 def resolve_paths(home: Path | None = None) -> Paths:
@@ -382,6 +414,7 @@ def load_config(home: Path | None = None, env: dict[str, str] | None = None) -> 
     sources = SourcesCfg.model_validate(_read_yaml(paths.config_dir / "sources.yaml"))
     companies = CompaniesCfg.model_validate(_read_yaml(paths.config_dir / "companies.yaml"))
     filters = FiltersCfg.model_validate(_read_yaml(paths.config_dir / "filters.yaml"))
+    protected = ProtectedCfg.model_validate(_read_yaml(paths.config_dir / "protected.yaml"))
     values: dict[str, str] = {}
     if paths.secrets_file.exists():
         values.update(parse_env_file(paths.secrets_file.read_text(encoding="utf-8")))
@@ -391,4 +424,4 @@ def load_config(home: Path | None = None, env: dict[str, str] | None = None) -> 
         if environ.get(key):
             values[key] = environ[key]
     return AppConfig(paths=paths, settings=settings, llm=llm, secrets=Secrets(values), policy=policy,
-                     sources=sources, companies=companies, filters=filters)
+                     sources=sources, companies=companies, filters=filters, protected=protected)

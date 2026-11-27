@@ -80,3 +80,8 @@ tasks:
     prompt_version: v1
     temperature: 0
     max_tokens: 64
+  label:                             # S2: batches of 20 jobs, JSON out, checked before use
+    chain: [gemini]
+    prompt_version: v1
+    temperature: 0
+    max_tokens: 8000

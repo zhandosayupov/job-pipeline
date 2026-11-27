@@ -1,0 +1,24 @@
+# Protected pool (spec §11): these companies never get automatic applications or messages.
+# A job matches by company name or alias (normalised), URL domain, or ATS board token.
+# The bot edits this file: /protect <company>, /unprotect <company>.
+# reason: target_tier1 | active_process | cooldown | manual · until: YYYY-MM-DD (optional)
+#
+# Seeded with the spec's Tier 1-2 targets. Add companies with an active or recent process yourself.
+
+companies:
+  - {name: IMC, aliases: [IMC Trading], ats_tokens: [imc], domains: [imc.com], reason: target_tier1}
+  - {name: Optiver, ats_tokens: [optiver, optiverprivate], domains: [optiver.com], reason: target_tier1}
+  - {name: Flow Traders, ats_tokens: [flowtraders], domains: [flowtraders.com], reason: target_tier1}
+  - {name: DRW, ats_tokens: [drweng], domains: [drw.com], reason: target_tier1}
+  - {name: SIG, aliases: [Susquehanna, Susquehanna International Group], domains: [sig.com], reason: target_tier1}
+  - {name: Virtu Financial, aliases: [Virtu], ats_tokens: [virtu], domains: [virtu.com], reason: target_tier1}
+  - {name: Hudson River Trading, aliases: [HRT], ats_tokens: [wehrtyou], domains: [hudsonrivertrading.com], reason: target_tier1}
+  - {name: Squarepoint, aliases: [Squarepoint Capital], domains: [squarepoint-capital.com], reason: target_tier1}
+  - {name: GSA Capital, ats_tokens: [gsacapital], domains: [gsacapital.com], reason: target_tier1}
+  - {name: QRT, aliases: [Qube Research & Technologies, Qube Research and Technologies], domains: [qube-rt.com], reason: target_tier1}
+  - {name: Jane Street, ats_tokens: [janestreet], domains: [janestreet.com], reason: target_tier1}
+  - {name: Citadel Securities, aliases: [Citadel], domains: [citadelsecurities.com, citadel.com], reason: target_tier1}
+  - {name: Jump Trading, aliases: [Jump], ats_tokens: [jumptrading], domains: [jumptrading.com], reason: target_tier1}
+  - {name: XTX Markets, ats_tokens: [xtxmarketstechnologies], domains: [xtxmarkets.com], reason: target_tier1}
+  - {name: Tower Research Capital, aliases: [Tower Research], ats_tokens: [towerresearchcapital], domains: [tower-research.com], reason: target_tier1}
+  - {name: Akuna Capital, ats_tokens: [akunacapital], domains: [akunacapital.com], reason: target_tier1}

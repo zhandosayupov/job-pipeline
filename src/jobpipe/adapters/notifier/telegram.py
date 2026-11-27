@@ -11,6 +11,8 @@ from collections.abc import Callable
 
 import httpx
 
+from ...ports.notifier import Buttons
+
 log = logging.getLogger(__name__)
 
 MAX_LEN = 4000  # Telegram's limit is 4096 characters
@@ -25,11 +27,14 @@ class TelegramNotifier:
         self.sleep = sleep
         self.retries = retries
 
-    def send(self, text: str, *, silent: bool = False) -> bool:
+    def send(self, text: str, *, silent: bool = False, buttons: Buttons | None = None) -> bool:
         if len(text) > MAX_LEN:
             text = text[: MAX_LEN - 20] + "\n…(обрезано)"
         body = {"chat_id": self.chat_id, "text": text, "disable_web_page_preview": True,
                 "disable_notification": silent}
+        if buttons:
+            body["reply_markup"] = {"inline_keyboard": [[{"text": t, "callback_data": d} for t, d in row]
+                                                        for row in buttons]}
         for attempt in range(self.retries + 1):
             try:
                 resp = self.client.post(self._url, json=body)
@@ -58,7 +63,7 @@ class TelegramNotifier:
 class LogNotifier:
     """Fallback when Telegram is not configured: write the message to the log."""
 
-    def send(self, text: str, *, silent: bool = False) -> bool:
+    def send(self, text: str, *, silent: bool = False, buttons: Buttons | None = None) -> bool:
         log.warning("notification (telegram not configured)", extra={"data": {"text": text[:500]}})
         return False
 
@@ -68,7 +73,9 @@ class RecordingNotifier:
 
     def __init__(self) -> None:
         self.messages: list[str] = []
+        self.buttons: list[Buttons | None] = []
 
-    def send(self, text: str, *, silent: bool = False) -> bool:
+    def send(self, text: str, *, silent: bool = False, buttons: Buttons | None = None) -> bool:
         self.messages.append(text)
+        self.buttons.append(buttons)
         return True
