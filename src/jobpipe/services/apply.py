@@ -301,7 +301,9 @@ def owner_decision(conn: sqlite3.Connection, clock: Clock, queue: Queue, action:
 def submit_lost(conn: sqlite3.Connection, clock: Clock, notifier: Notifier | None, app_id: str) -> None:
     """A submit task came back from an expired lease: the outcome is unknown, never retried."""
     key = side_effect_key(conn, app_id)
-    control.SideEffects(conn, clock).mark(key, "unknown")
+    se = control.SideEffects(conn, clock)
+    if se.status(key) == "planned":            # never overwrite a known outcome (done/failed) (S4 review)
+        se.mark(key, "unknown")
     if conn.execute("SELECT state FROM applications WHERE id = ?", (app_id,)).fetchone()[0] == "submitting":
         transition(conn, clock, "application", app_id, "submit_unknown", expected="submitting", actor="apply",
                    data={"error": "worker lease expired during submit"})
