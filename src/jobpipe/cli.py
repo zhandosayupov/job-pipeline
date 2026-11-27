@@ -262,6 +262,8 @@ def _run_collect(cfg: AppConfig, conn, args) -> int:
         rows = conn.execute("SELECT drop_rule, COUNT(*) n FROM jobs WHERE drop_rule IS NOT NULL GROUP BY 1").fetchall()
         print("dropped by rule: " + ", ".join(f"{r['drop_rule']} {r['n']}" for r in rows))
         print("dry run: the real database was not changed")
+        conn.close()
+        shutil.rmtree(copy.parent, ignore_errors=True)   # /tmp is RAM on Debian 13: never leave the copy
     return 0
 
 
