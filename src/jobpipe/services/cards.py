@@ -106,8 +106,13 @@ def handle_job_action(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, ac
 
 # --- rating labels (S2 done-condition: owner agrees with >= 80% of 30 random labels) ----------
 
+RATING_SAMPLE = 30
+
+
 def next_rating_card(conn: sqlite3.Connection, rng: random.Random | None = None) -> tuple[str, Buttons] | None:
     rated = {r[0] for r in conn.execute("SELECT entity_id FROM events WHERE entity = 'job' AND kind = 'rated'")}
+    if len(rated) >= RATING_SAMPLE:
+        return None            # the S2 check is a sample of 30: more votes would shift the percentage
     rows = [r for r in conn.execute(
         "SELECT rowid, * FROM jobs WHERE state IN ('labeled', 'shortlisted', 'skipped') "
         "AND json_extract(data_json, '$.label') IS NOT NULL").fetchall() if r["id"] not in rated]
