@@ -1,0 +1,72 @@
+# Job sources (S1). Copied to $JOBPIPE_HOME/config/sources.yaml by `jobpipe init`.
+# Every source has a recorded fixture in tests/fixtures/sources/ and a contract test.
+# Preview without touching the database: `jobpipe run collect --dry-run [--sources hn,jobicy]`.
+
+http:
+  user_agent: "jobpipe/0.1 (+https://github.com/zhandosayupov/job-pipeline)"
+  min_interval_s: 1.0        # per host
+  timeout_s: 30
+  respect_robots: true       # robots.txt refusals stop the source; never turned off for scraping
+
+health_alert_after: 3        # Telegram alert after this many consecutive failed runs of a source
+digest_max_items: 40
+
+sources:
+  # Company boards; which companies is in companies.yaml.
+  greenhouse: {enabled: true}
+  ashby: {enabled: true}
+  lever: {enabled: true}
+  workable: {enabled: true}
+
+  amazon:
+    enabled: true
+    params:
+      query: "c++"
+      countries: [NLD, DEU, GBR, IRL, LUX, ARE, SGP, JPN]   # ISO3
+      max_pages: 3          # pages of 8
+
+  himalayas:
+    enabled: true
+    params: {queries: ["c++", "backend"], limit: 50}
+
+  jobicy:
+    enabled: true
+    params: {tags: ["c++", "golang", "python"], count: 50}
+
+  wwr:
+    enabled: true
+    params: {categories: [remote-back-end-programming-jobs, remote-full-stack-programming-jobs]}
+
+  arbeitnow:
+    enabled: true
+
+  hn:
+    enabled: true
+    params: {queries: ["c++", "visa", "relocation", "remote"]}
+
+  telegram:
+    enabled: true
+    params: {channels: [forcpp, opento_dev]}
+
+  # Companies' own career sites (no ATS): sitemap of vacancies + schema.org JobPosting on each page.
+  # A site qualifies only if its robots.txt allows the job pages (Google's job search does not).
+  # max_new: pages fetched per site per run (1 request/second); the rest comes on later runs.
+  careers:
+    enabled: true
+    params:
+      sites:
+        - {key: kaspi, company: Kaspi.kz, sitemap: "https://job.kaspi.kz/sitemap/vacancies.xml", max_new: 40}
+        - {key: meta, company: Meta, sitemap: "https://www.metacareers.com/jobsearch/sitemap.xml", max_new: 40}
+        - {key: gresearch, company: G-Research, sitemap: "https://www.gresearch.com/sitemap_index.xml",
+           index: "vacancies-sitemap", max_new: 40}
+        # relocate.me: jobs with relocation packages; the company comes from each page's JobPosting
+        - {key: relocate, company: relocate.me, sitemap: "https://relocate.me/sitemap-jobs.xml", max_new: 30}
+
+  # Workday-hosted career sites through their public JSON search. Off by default: Nvidia answered
+  # 429 to a few test requests on 2026-11-27, so turn it on with few queries and watch /sources.
+  workday:
+    enabled: false
+    params:
+      queries: ["c++", "low latency"]
+      tenants:
+        - {company: NVIDIA, host: nvidia.wd5.myworkdayjobs.com, tenant: nvidia, site: NVIDIAExternalCareerSite, limit: 20}

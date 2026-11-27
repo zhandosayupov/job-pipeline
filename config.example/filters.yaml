@@ -1,0 +1,84 @@
+# Prefilter keyword lists (deterministic, before any LLM). EN + RU.
+# Plain entries match whole words, case-insensitive ("c++" works); "re:" entries are regexes.
+# Every dropped job is recorded with its rule and the matched keyword: `jobpipe jobs dropped`.
+
+title_include:
+  - engineer
+  - engineering
+  - developer
+  - programmer
+  - software
+  - swe
+  - sde
+  - backend
+  - back-end
+  - c++
+  - quant developer
+  - re:\bdev\b
+  - разработчик
+  - программист
+  - инженер
+
+title_exclude:
+  - intern
+  - internship
+  - working student
+  - werkstudent
+  - graduate
+  - staff
+  - principal
+  - distinguished
+  - manager
+  - head of
+  - director
+  - vp
+  - chief
+  - trader
+  - sales
+  - account executive
+  - recruiter
+  - designer
+  - product owner
+  - frontend
+  - front-end
+  - ios
+  - android
+  - mobile
+  - flutter
+  - react native
+  - фронтенд
+  - стажер
+  - стажёр
+  - руководитель
+  - директор
+  - re:\bлид\b
+
+title_exclude_exceptions:
+  - member of technical staff
+  - trading systems
+
+text_exclude:
+  - security clearance
+  - active clearance
+  - us citizens only
+  - must be a us citizen
+  - re:\bUS persons? only\b
+  - гражданство рф
+  - гражданство российской федерации
+
+# Onsite jobs here are dropped (remote ones are kept).
+onsite_excluded_locations:
+  - russia
+  - russian federation
+  - moscow
+  - saint petersburg
+  - st. petersburg
+  - belarus
+  - minsk
+  - россия
+  - москва
+  - санкт-петербург
+  - беларусь
+  - минск
+  - re:^RU$
+  - re:^BY$

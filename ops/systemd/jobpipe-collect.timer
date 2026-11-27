@@ -1,0 +1,10 @@
+[Unit]
+Description=jobpipe: collect every 3 hours, 08-23 Almaty time
+
+[Timer]
+OnCalendar=*-*-* 08,11,14,17,20,23:00:00 Asia/Almaty
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target

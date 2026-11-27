@@ -65,9 +65,10 @@ chmod -R u+rwX,go+rX,go-w "$NEW_DIR"     # mktemp makes 0700: open read access, 
 # Nothing may start from /opt/jobpipe while it is being swapped and re-synced.
 # Stopping the queue unit waits for a running queue pass to end (SIGTERM, then the kill timeout).
 log "stopping jobpipe units for the swap"
-systemctl stop jobpipe-queue.timer jobpipe-backup.timer jobpipe-retention.timer 2>/dev/null || true
+systemctl stop jobpipe-queue.timer jobpipe-backup.timer jobpipe-retention.timer jobpipe-collect.timer \
+  jobpipe-digest.timer 2>/dev/null || true
 systemctl stop jobpipe-queue.service jobpipe-backup.service jobpipe-retention.service \
-  jobpipe-bot.service 2>/dev/null || true
+  jobpipe-collect.service jobpipe-digest.service jobpipe-bot.service 2>/dev/null || true
 
 if [[ -e $APP_DIR ]]; then
   rm -rf -- "$APP_DIR.old"
@@ -105,7 +106,8 @@ for unit in "$APP_DIR"/ops/systemd/*.{service,timer}; do
   install -m 644 "$unit" "/etc/systemd/system/$(basename "$unit")"
 done
 systemctl daemon-reload
-systemctl enable --now jobpipe-queue.timer jobpipe-backup.timer jobpipe-retention.timer
+systemctl enable --now jobpipe-queue.timer jobpipe-backup.timer jobpipe-retention.timer \
+  jobpipe-collect.timer jobpipe-digest.timer
 
 if grep -qE '^TELEGRAM_BOT_TOKEN=.+' "$ETC_DIR/secrets.env" \
    && grep -qE '^\s*owner_id:\s*[0-9]+' "$HOME_DIR/config/settings.yaml"; then

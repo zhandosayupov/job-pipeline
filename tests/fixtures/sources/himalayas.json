@@ -1,0 +1,165 @@
+{
+ "comments": "21/08/2026: Cursor pagination is now available and is the preferred way to page through the feed. Pass the nextCursor value from each response back as ?cursor=. It is faster than offset and will never return the same job twice. The offset parameter is deprecated and will be removed in a future release. 13/03/2026: The API has been updated to include the companySlug field in the response.",
+ "updatedAt": 1795700537,
+ "offset": 0,
+ "limit": 20,
+ "totalCount": 117027,
+ "nextCursor": "MjAyNi0xMS0yNlQxMzozMTowMC44NjIxNTNafDI1ODM1MTc",
+ "jobs": [
+  {
+   "title": "Business Development Manager AI/Neocloud - West Europe",
+   "excerpt": "As the global leader in high-speed connectivity, Ciena is committed to a people-first approach.",
+   "companyName": "Ciena",
+   "companySlug": "ciena",
+   "companyLogo": "https://cdn-images.himalayas.app/kmapg7mcbt8vxo2xcdublgwg8l42",
+   "employmentType": "Full Time",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Senior"
+   ],
+   "currency": null,
+   "locationRestrictions": [
+    "United Kingdom"
+   ],
+   "timezoneRestrictions": [
+    0
+   ],
+   "categories": [
+    "Business-Development-Manager",
+    "Sales-Manager",
+    "Account-Manager",
+    "Account-Executive",
+    "Enterprise-Sales-Manager"
+   ],
+   "parentCategories": [
+    "Sales"
+   ],
+   "description": "<p>As the global leader in high-speed connectivity, <a href=\"https://himalayas.app/companies/ciena\">Ciena</a> is committed to a people-first approach. Our teams enjoy a culture focused on prioritizing a flexible work environment that empowers individual growth, well-being, and belonging. We’re a technology company that leads with our humanity—driving our business priorities alongside meaningful social, community, and societal impact.</p><p>Drive <a href=\"https://himalayas.app/companies/ciena\">Ciena</a>'s growth across emerging AI infrastructure markets by developing strategic relationships with neocloud operators, sovereign AI initiatives, wholesale infrastructure providers, and next-generation digital infrastructure companies. This role combines strategic business development with ownership of named and developing accounts to create long-term opportunities across <a href=\"https://himalayas.app/companies/ciena\">Ciena</a>'s optical, routing, automation, and network software portfolio.</p><h3>How you will make an impact:</h3><ul>\n<li>Develop and execute account plans for named Neoscaler and AI infrastructure accounts.</li>\n<li>Build relationships with founders, CEOs, CTOs, infrastructure leaders, and procurement stakeholders.</li>\n<li>Identify and develop opportunities across data-centre interconnect, optical transport, routing, and automation solutions. </li>\n<li>Expand existing accounts while identifying emerging AI infrastructure operators, sovereign AI projects, next-generation cloud providers, and other new market entrants.</li>\n<li>Build pipeline through direct engagement, industry events, market intelligence, ecosystem partnerships, and early engagement before formal procurement cycles begin.</li>\n<li>Map funding activity, investor relationships, and market developments across the AI and digital infrastructure ecosystem.</li>\n<li>Lead virtual account teams, opportunity qualification, account strategy, commercial negotiations, and customer presentations across Sales, Systems Engineering, Product Line Management, Services, and Marketing.</li>\n</ul><h3>The must haves:</h3><ul>\n<li>\n<b>Experience:</b> 5+ years of enterprise technology sales, business development, or account management experience.</li>\n<li><b>French language capability.</b></li>\n<li>Experience selling networking, telecommunications, cloud, infrastructure, or data-centre solutions.</li>\n<li>Background in the Neoscaler or neocloud market and experience developing relationships in this market.</li>\n<li>Experience working with hyperscalers, cloud providers, colocation operators, telecommunications providers, or infrastructure investors.</li>\n<li>Experience building executive relationships and managing complex sales cycles involving multiple stakeholders.</li>\n<li>Application of commercial and financial acumen.</li>\n</ul><h3>Nice to haves:</h3><h3>• Optical networking experience.</h3><h3>• Data-centre networking experience.</h3><ul>\n<li>Knowledge of cloud, AI infrastructure, or the GPU ecosystem.</li>\n<li>Experience developing relationships with GPU providers, data-centre operators, system integrators, cloud software providers, and ecosystem partners.</li>\n</ul><p>At <a href=\"https://himalayas.app/companies/ciena\">Ciena</a>, we are committed to building and fostering an environment in which our employees feel respected, valued, and heard.  <a href=\"https://himalayas.app/companies/ciena\">Ciena</a> values the diversity of its workforce and respects its employees as individuals. We do not tolerate any form of discrimination.</p><p><a href=\"https://himalayas.app/companies/ciena\">Ciena</a> is an Equal Opportunity Employer, including disability and protected veteran status.</p><p>If contacted in relation to a job opportunity, please advise <a href=\"https://himalayas.app/companies/ciena\">Ciena</a> of any accommodation measures you may require.</p><p>Originally posted on <a href=\"https://himalayas.app\">Himalayas</a></p>",
+   "pubDate": 1795700537,
+   "expiryDate": 1800884536,
+   "applicationLink": "https://himalayas.app/companies/ciena/jobs/business-development-manager-ai-neocloud-west-europe?utm_source=api",
+   "guid": "https://himalayas.app/companies/ciena/jobs/business-development-manager-ai-neocloud-west-europe"
+  },
+  {
+   "title": "Business Analyst",
+   "excerpt": "Business Analyst We are seeking a Business Analyst with a specialization in CyberSecurity Identity and Access Management Analyst to support a large-scale clinical information system transformation initiative within a public sector health organization.",
+   "companyName": "IT Advantage",
+   "companySlug": "it-advantage",
+   "companyLogo": "https://cdn-images.himalayas.app/rvrh7zi237gspdi9ibvf8ruy8ruf",
+   "employmentType": "Contractor",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Mid-level"
+   ],
+   "currency": null,
+   "locationRestrictions": [
+    "Canada"
+   ],
+   "timezoneRestrictions": [
+    -7,
+    -6,
+    -5,
+    -4,
+    -3.5
+   ],
+   "categories": [
+    "Business-Analyst",
+    "Systems-Analyst",
+    "Identity-Access-Management-Analyst",
+    "Data-Analyst",
+    "Healthcare-IT-Analyst"
+   ],
+   "parentCategories": [
+    "Data Science"
+   ],
+   "description": "<h3>Business Analyst</h3><p>We are seeking a Business Analyst with a specialization in CyberSecurity Identity and Access Management Analyst to support a large-scale clinical information system transformation initiative within a public sector health organization. This role focuses on user population management, identity rationalization, and identity data governance to ensure all identity and access processes, technologies, and controls are ready for a provincial clinical system implementation. The successful professional will work to establish and maintain trusted user population datasets, identify authoritative identity sources, reconcile duplicate and multiple accounts, and develop matching and correlation rules that support system readiness and ongoing operations.</p><p>This position requires someone who can perform identity data discovery, analysis, and reconciliation to support multiple phases of a clinical system program, including testing, training, deployment, go-live readiness, and operational sustainment. Key responsibilities include analyzing identity data across HR systems, provider registries, Active Directory, and other approved sources; building and maintaining trusted user population datasets; developing and documenting identity attribute standards and data definitions; assessing identity data quality and identifying gaps and remediation opportunities; reconciling duplicate user records and multiple accounts; performing user population analysis to support planning and deployment; validating onboarding populations prior to deployment waves; supporting user identification activities related to training enrollment, multi-factor authentication, access provisioning, and onboarding readiness; coordinating with identity and access management, role-based access control, training, identity governance and administration, security, and operational teams; and supporting identity governance processes and operational procedures. The role includes mentoring and knowledge transfer to program personnel to ensure continuity and long-term program success.</p><h3>Qualifications</h3><ul>\n<li>Bachelor's degree in Computer Science, Business Administration, Health Informatics, or a similar discipline, or an equivalent combination of education and experience</li>\n<li>\n<strong>3+ years</strong> - performing business, data, or systems analysis in a large enterprise environment</li>\n<li>\n<strong>3+ years</strong> - working with identity, access, user account, provider, HR, or directory data</li>\n<li>\n<strong>3+ years</strong> - performing data analysis, reconciliation, validation, and quality assessment activities</li>\n<li>\n<strong>3+ years</strong> - gathering and documenting business rules, data rules, workflows, and requirements</li>\n<li>\n<strong>3+ years</strong> - working with large datasets using Excel, reporting tools, databases, or similar analysis tools</li>\n<li>\n<strong>3+ years</strong> - coordinating with technical, operational, and business stakeholders</li>\n<li>\n<strong>3+ years</strong> - strong written and verbal communication skills</li>\n<li>\n<strong>3+ years</strong> - investigating issues, performing root-cause analysis, and recommending corrective actions</li>\n<li>\n<strong>3+ years</strong> - supporting large-scale healthcare, clinical information system, EMR, EHR, or enterprise transformation initiatives</li>\n<li>\n<strong>3+ years</strong> - working with Active Directory, Entra ID, LDAP directories, provider registries, HR systems, or identity repositories</li>\n</ul><h3>Nice to Have</h3><ul>\n<li>\n<strong>3+ years</strong> - building or managing enterprise user population datasets</li>\n<li>\n<strong>3+ years</strong> - performing identity reconciliation, account rationalization, or duplicate record resolution activities</li>\n<li>\n<strong>3+ years</strong> - defining identity matching rules, correlation logic, or identity data standards</li>\n<li>\n<strong>3+ years</strong> - conducting data quality assessments, profiling, cleansing, and remediation activities</li>\n<li>\n<strong>3+ years</strong> - supporting multi-factor authentication, single sign-on, Tap-and-Go, user provisioning, or authentication-related programs</li>\n<li>\n<strong>2+ years</strong> - supporting Identity Governance and Administration solutions such as Saviynt or similar platforms</li>\n<li>\n<strong>3+ years</strong> - supporting healthcare user onboarding, provider identity, or access management initiatives</li>\n<li>\n<strong>2+ years</strong> - supporting testing, training, or deployment readiness activities for large-scale system implementations</li>\n<li>French language proficiency, spoken and written</li>\n</ul><p>Originally posted on <a href=\"https://himalayas.app\">Himalayas</a></p>",
+   "pubDate": 1795700518,
+   "expiryDate": 1800884518,
+   "applicationLink": "https://himalayas.app/companies/it-advantage/jobs/business-analyst?utm_source=api",
+   "guid": "https://himalayas.app/companies/it-advantage/jobs/business-analyst"
+  },
+  {
+   "title": "Sr. Professional Services Consultant - Unified Communications",
+   "excerpt": "Summary The Senior Professional Services Consultant – On-Prem Cisco Unified Communications Manager, Cloud Collaboration & Contact Center delivers high‑value professional services.",
+   "companyName": "Logicalis Spain",
+   "companySlug": "logicalis-com",
+   "companyLogo": "",
+   "employmentType": "Full Time",
+   "minSalary": 100000,
+   "maxSalary": 145000,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Senior"
+   ],
+   "currency": "USD",
+   "locationRestrictions": [
+    "United States"
+   ],
+   "timezoneRestrictions": [
+    -10,
+    -9,
+    -8,
+    -7,
+    -6,
+    -5,
+    14
+   ],
+   "categories": [
+    "Unified-Communications-Consultant",
+    "Voice-Solutions-Consultant",
+    "Collaboration-Solutions-Consultant",
+    "Contact-Center-Solutions-Consultant",
+    "Professional-Services-Consultant"
+   ],
+   "parentCategories": [],
+   "description": "<h3>Summary</h3><p>The Senior Professional Services Consultant – On-Prem Cisco Unified Communications Manager, Cloud Collaboration &amp; Contact Center delivers high‑value professional services.</p><p>This role serves as a technical lead and trusted advisor, guiding customers through Cisco Unified Communication migrations, cloud and hybrid voice, contact center, and collaboration transformations.</p><p>The consultant is responsible for solution design, implementation, migration, optimization, and knowledge transfer while ensuring solutions align with customer business requirements, industry best practices, and Logicalis delivery standards.</p><h3>Essential Duties and Responsibilities</h3><br><h3><i>Cisco Unified Communications Manager &amp; Collaboration Delivery</i></h3><ul>\n<li>Designs, implements, migrates, and optimizes enterprise voice solutions migration of <b>CUCM, legacy PBXs, or hybrid environments.</b>\n</li>\n<li>Designs, implements, migrates, and optimizes enterprise voice solutions using <b>Cisco Webex Calling</b> (Multi‑Tenant, Dedicated Instance, and Local Gateway) and <b>Microsoft Teams Voice.</b>\n</li>\n<li>Architects and integrates PSTN connectivity using <b>Cisco Local Gateway, Microsoft Direct Routing, and Operator Connect</b> models.</li>\n<li>Designs hybrid and coexistence architectures between Cisco and Microsoft collaboration platforms where required.</li>\n</ul><p><i>Contact Center Solutions</i></p><ul>\n<li>Designs and implements Cisco Webex Contact Center solutions, including call routing strategies, agent workflows, reporting, and integrations.</li>\n<li>Supports customer transitions from UCCX and UCCE to Webex Contact Center, including phased migrations and coexistence strategies.</li>\n<li>Works directly with business and technical stakeholders to define contact center requirements and align technology to customer experience goals.</li>\n</ul><p><i>Consulting &amp; Delivery Leadership</i></p><ul>\n<li>Leads end‑to‑end professional services engagements including requirements gathering, solution design, implementation planning, validation, documentation, and knowledge transfer.</li>\n<li>Acts as technical lead on complex projects, providing guidance to project teams and ensuring successful delivery outcomes.</li>\n<li>Performs UC and Contact Center assessments, health checks, and optimization reviews for cloud and hybrid environments.</li>\n<li>Develops and maintains Logicalis standards for scoping, documentation, and implementation best practices.</li>\n</ul><p><i>Client Engagement &amp; Practice Development</i></p><ul>\n<li>Builds trusted advisor relationships by demonstrating strong listening skills, technical credibility, and consistent delivery excellence.</li>\n<li>Provides consultative guidance to help customers make informed decisions around cloud adoption, migration strategies, and operational impacts.</li>\n<li>Collaborates with PMO and Resource Management to plan and deliver engagements effectively.</li>\n<li>Mentors and supports team members in collaborative delivery environments.</li>\n<li>Contributes to service development, process improvement, and practice refinement initiatives.</li>\n</ul><p><i>General</i></p><ul><li>Demonstrates and actively promotes an understanding and commitment to the mission of Logicalis through performing behaviors consistent with the organization's values.</li></ul><ul><li>Maintains a working knowledge of applicable Federal, State, and Local laws and regulations as well as policies and procedures of Logicalis in order to ensure adherence in a manner that reflects honest, ethical and professional behaviors.</li></ul><ul><li>Supports and conducts self in a manner consistent with customer service expectations.</li></ul><h3>Supervisory Responsibilities </h3><p>This job has no supervisory responsibilities. </p><br><h3>Qualifications </h3><br><p><b>Education/Experience/Technical Requirements/Certifications  </b></p><h3>Equivalent combination accepted.    </h3><br><h3>Education</h3><br><p> Bachelor’s degree in a related field, or equivalent combination of education and experience</p><br><h3>Experience &amp; Technical Requirements </h3><br><ul><li>8+ years of collaboration and voice experience with a strong focus on cloud and hybrid solutions.·       </li></ul><br><p>Experience integrating or migrating from legacy platforms such as:  </p><br><ul>\n<li>Cisco Unified Communications Manager (On-Prem CUCM)</li>\n<li>UCCX and UCCE</li>\n<li> Legacy or third‑party PBX systems·      </li>\n</ul><br><p>Proven experience designing and implementing:</p><ul>\n<li>Cisco Webex Calling</li>\n<li>Cisco Webex Contact Center</li>\n<li>Microsoft Teams Voice</li>\n<li>Cisco Webex Control Hub·       </li>\n</ul><br><ul>\n<li>Strong understanding of PSTN connectivity, SIP, voice gateways, and hybrid architectures.·      </li>\n<li> Experience with third‑party integrations such as AudioCodes preferred.·       Consulting background with demonstrated customer‑facing delivery experience.·       </li>\n<li>Proficient in Microsoft Office applications. </li>\n</ul><br><h3>Certifications </h3><br><ul>\n<li>Cisco Certified Internetwork Expert (CCIE) – Collaboration or Enterprise Infrastructure</li>\n<li>Cisco Certified Network Professional (CCNP) – Collaboration or Enterprise Infrastructure </li>\n</ul><br><h3>Other Skills and Abilities</h3><br><ul>\n<li>Excellent written and verbal communication skills with the ability to engage confidently with customers and internal teams.</li>\n<li>Strong consultative skills to assess customer needs and translate them into effective technical solutions.</li>\n<li>Exceptional time management and prioritization skills in a multi‑customer environment.</li>\n<li>Advanced problem‑solving and analytical abilities, including the capability to manage highly complex engagements.</li>\n<li>Proven ability to build long‑term client relationships and maintain high customer satisfaction.</li>\n<li>Willingness and ability to travel nationally as required.</li>\n<li>Commitment to continuous professional development. </li>\n</ul><br><h3>Physical Demands</h3><br><p>The physical demands described here are representative of those that should be met by an employee to successfully perform the essential functions of this job. Reasonable accommodations may be made to enable individuals with disabilities to perform the essential functions.</p><br><p>While performing the duties of this Job, the employee is constantly required to sit, talk, see, hear, and use hands and arms.  The employee is frequently required to stand; move about, climb steps or balance and stoop, kneel, crouch, or crawl. The employee may occasionally lift and/or move up to 10 pounds.</p><br><p>The above statements describe the general nature and level of work being performed by individuals assigned to this classification. This is not intended to be an exhaustive list of all responsibilities and duties required of personnel so classified.</p><br><p>Logicalis is an Equal Opportunity Employer. It is our policy to employ people who are qualified by reason of education, training, experience, and demonstrated performance.   We value inclusion and belonging at our company. We do not discriminate on the basis of race, color, religion, national origin, sexual orientation, gender identity and gender expression, marital status, age, height, weight, disability, veteran status, or any other reason prohibited by applicable federal or state laws. </p><br><p><i><b>NOTE:</b></i><i>It is Logicalis’ practice that when a client requires medical testing, the employee must accept that requirement as a condition of their assignment and either submit to the tests or show proof they’ve completed the test satisfactorily (i.e., TB Test negative).</i></p><br><br><p><b>Salary Compensation Range:</b>  $100,000 to $145,000 plus bonus</p><br><br><p>LogicalisUS Benefits Summary</p><p>Originally posted on <a href=\"https://himalayas.app\">Himalayas</a></p>",
+   "pubDate": 1795700512,
+   "expiryDate": 1800884512,
+   "applicationLink": "https://himalayas.app/companies/logicalis-com/jobs/sr-professional-services-consultant-unified-communications?utm_source=api",
+   "guid": "https://himalayas.app/companies/logicalis-com/jobs/sr-professional-services-consultant-unified-communications"
+  },
+  {
+   "title": "ProjectWise Specialist",
+   "excerpt": "Corporate Practice Michael Baker International understands that people require choices in where they want to begin to build a sustainable future.",
+   "companyName": "Michael Baker International",
+   "companySlug": "michael-baker-international",
+   "companyLogo": "https://cdn-images.himalayas.app/ldh46avspl4d1zlg1dbo6h59is5n",
+   "employmentType": "Full Time",
+   "minSalary": 78000,
+   "maxSalary": 112000,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Entry-level"
+   ],
+   "currency": "USD",
+   "locationRestrictions": [
+    "United States"
+   ],
+   "timezoneRestrictions": [
+    -10,
+    -9,
+    -8,
+    -7,
+    -6,
+    -5,
+    14
+   ],
+   "categories": [
+    "ProjectWise-Specialist",
+    "Application-Support-Specialist",
+    "CAD-BIM-Support-Specialist",
+    "Design-Technology-Engineer"
+   ],
+   "parentCategories": [],
+   "description": "<h3>Corporate Practice</h3><p><a href=\"https://himalayas.app/companies/michael-baker-international\">Michael Baker International</a> understands that people require choices in where they want to begin to build a sustainable future. For more than 85 years, <a href=\"https://himalayas.app/companies/michael-baker-international\">Michael Baker International</a> has maintained an entrepreneurial work environment that fosters great careers, which has ultimately brought great success to the organization. Michael Baker offers many opportunities to help you grow professionally to build your career. Whether it is in Finance, IT, Human Resources, Technology, Communications, Proposal Development, Legal or our National Practice and Market segments, take your next step with us and help make a difference in the lives of those you work with and those we serve.</p><h3>What We're Looking For</h3><p>Michael Baker's Design Technology team is looking for a ProjectWise Specialist to help our project teams get the most out of ProjectWise, our Common Data Environment. You'll be the go-to person when engineers and designers need help, and you'll set up and maintain the projects, permissions, and workspaces that keep work moving across a large portfolio of infrastructure projects.</p><p>This is a learning and growth role. You'll work alongside senior ProjectWise and Bentley specialists who want to share what they know, and you'll build skills in platform administration, automation, and Bentley's cloud solutions as we move toward cloud-based digital delivery. If you know how ProjectWise is put together, enjoy helping people solve problems, and want to grow with where the platform is heading, we'd like to hear from you.</p><h3>What You'll Do</h3><ul>\n<li><p>Serve as a primary contact for ProjectWise support requests, troubleshooting access, permissions, workspace configuration, synchronization, and file management issues, and follow through until each one is resolved.</p></li>\n<li><p>Talk with project teams to understand what they need, then turn those needs into practical ProjectWise setups.</p></li>\n<li><p>Create and maintain projects, work areas, folder structures, metadata, user groups, and permissions using approved standards and security practices.</p></li>\n<li><p>Deploy and maintain managed workspace configurations, and apply naming conventions and metadata standards consistently across projects.</p></li>\n<li><p>Perform routine file recovery, restoration, and health checks, and keep runbooks, checklists, and operational records current.</p></li>\n<li><p>Support system upgrades, patching, and configuration changes, including testing before production release.</p></li>\n<li><p>Write and update user guides, process documentation, and onboarding materials, and deliver or co-deliver training sessions.</p></li>\n<li><p>Help build automations, dashboards, and reports for project setup, permissions, standards, and usage, and help evaluate Bentley cloud solutions such as Bentley Infrastructure Cloud and iTwin.</p></li>\n</ul><h3>What You Need to Succeed</h3><ul>\n<li><p>At least 18 months of hands-on experience with Bentley ProjectWise that includes some administration or configuration work — for example, setting up projects or folders, managing users, groups, and permissions, or supporting managed workspaces. This experience may come from a state DOT, federal agency, transit or toll authority, engineering or construction firm, or a CAD/BIM support role.</p></li>\n<li><p>Experience supporting users in a technical role, such as help desk, service desk, CAD/BIM support, or application support. This can overlap with your ProjectWise experience.</p></li>\n<li><p>An understanding of how engineering and design teams use CAD or BIM tools such as MicroStation, OpenRoads, AutoCAD, Civil 3D, or Revit.</p></li>\n<li><p>Clear written and verbal communication, including the ability to explain technical topics to people who aren't technical.</p></li>\n<li><p>An associate or bachelor's degree in engineering, architecture, construction management, information technology, or a related field — or an equivalent combination of education, training, certifications, military service, or work experience.</p></li>\n<li><p>Authorization to work in the United States without current or future sponsorship.</p></li>\n</ul><p><strong>Helpful, but not required:</strong> ProjectWise experience with a state DOT or other public infrastructure owner; MicroStation or OpenRoads managed workspace configuration; exposure to Bentley Infrastructure Cloud or iTwin. If you don't have these, we still encourage you to apply.</p><h3>Compensation</h3><p>The approximate compensation range for this position is $78,000 - $112,000. This compensation range is a good faith estimate for the position at the time of posting. Actual compensation will be dependent upon factors including, but not limited to, relevant experience, qualifications, education, skill set, and geographic location.</p><h3>Why Choose Us</h3><ul>\n<li><h3>Medical, dental, vision insurance</h3></li>\n<li><h3>401 (k) Retirement Plan</h3></li>\n<li><h3>Health Savings Account (HSA)</h3></li>\n<li><h3>Flexible Spending Account (FSA)</h3></li>\n<li><p>Life, AD&amp;D, short-term, and long-term disability</p></li>\n<li><h3>Professional and personal development</h3></li>\n<li><h3>Generous paid time off</h3></li>\n<li><h3>Commuter and wellness benefits</h3></li>\n<li><h3>Tuition reimbursement</h3></li>\n</ul><p><strong>THIS POSTING IS FOR A CURRENT VACANCY AND MICHAEL BAKER INTENDS TO FILL THIS POSITION BY FEB 15, 2027.</strong></p><p>Originally posted on <a href=\"https://himalayas.app\">Himalayas</a></p>",
+   "pubDate": 1795700492,
+   "expiryDate": 1800884492,
+   "applicationLink": "https://himalayas.app/companies/michael-baker-international/jobs/projectwise-specialist?utm_source=api",
+   "guid": "https://himalayas.app/companies/michael-baker-international/jobs/projectwise-specialist"
+  }
+ ]
+}

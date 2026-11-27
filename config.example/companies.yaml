@@ -1,0 +1,153 @@
+# Company boards on hosted ATSes. Copied to $JOBPIPE_HOME/config/companies.yaml by `jobpipe init`.
+# Each entry is one request per collect run. Tokens checked against the live APIs on 2026-11-26.
+# priority: 1 = target firm, 2 = good fit, 3 = broad net. Protected companies (no automatic
+# applications) are listed separately in protected.yaml (S2); collecting them is fine.
+#
+# Find a token: the board URL boards.greenhouse.io/<token>, jobs.ashbyhq.com/<token>,
+# jobs.lever.co/<token>. Check it: curl -s https://boards-api.greenhouse.io/v1/boards/<token>/jobs | head -c 200
+
+companies:
+  # Greenhouse
+  - {name: IMC, ats: greenhouse, token: imc, priority: 1}
+  - {name: Optiver, ats: greenhouse, token: optiver, priority: 1}
+  - {name: Optiver (private), ats: greenhouse, token: optiverprivate, priority: 1}
+  - {name: Flow Traders, ats: greenhouse, token: flowtraders, priority: 1}
+  - {name: DRW, ats: greenhouse, token: drweng, priority: 1}
+  - {name: Jane Street, ats: greenhouse, token: janestreet, priority: 1}
+  - {name: Jump Trading, ats: greenhouse, token: jumptrading, priority: 1}
+  - {name: XTX Markets, ats: greenhouse, token: xtxmarketstechnologies, priority: 1}
+  - {name: Hudson River Trading, ats: greenhouse, token: wehrtyou, priority: 1}
+  - {name: Tower Research Capital, ats: greenhouse, token: towerresearchcapital, priority: 1}
+  - {name: Akuna Capital, ats: greenhouse, token: akunacapital, priority: 1}
+  - {name: GSA Capital, ats: greenhouse, token: gsacapital, priority: 1}
+  - {name: Virtu Financial, ats: greenhouse, token: virtu, priority: 1}
+  - {name: think-cell, ats: greenhouse, token: think-cell, priority: 2}
+  - {name: Cloudflare, ats: greenhouse, token: cloudflare, priority: 2}
+
+  # Ashby
+  - {name: ClickHouse, ats: ashby, token: clickhouse, priority: 2}
+  - {name: Perplexity, ats: ashby, token: perplexity, priority: 3}
+
+  # Lever: none of the targets checked so far use it. Example:
+  # - {name: Spotify, ats: lever, token: spotify, priority: 3}
+
+  # Not found on Greenhouse on 2026-11-26 (other ATS, or a different token):
+  # Citadel Securities, Squarepoint, QRT, SIG, Mistral (Ashby).
+
+  # --- added 2026-11-27: boards checked live (HTTP 200) on each ATS API ---
+  # Trading and quant funds
+  - {name: Hudson River Trading (Ashby), ats: ashby, token: hrt, priority: 1}
+  - {name: Maven Securities, ats: ashby, token: maven, priority: 1}
+  - {name: B2C2, ats: greenhouse, token: b2c2, priority: 1}
+  - {name: Keyrock, ats: ashby, token: keyrock, priority: 1}
+  - {name: Optiver US, ats: greenhouse, token: optiverus, priority: 1}
+  - {name: Marshall Wace, ats: greenhouse, token: marshallwace, priority: 1}
+  - {name: AQR, ats: greenhouse, token: aqr, priority: 1}
+  - {name: Point72, ats: greenhouse, token: point72, priority: 1}
+  - {name: ExodusPoint, ats: greenhouse, token: exoduspoint, priority: 1}
+  - {name: Schonfeld, ats: greenhouse, token: schonfeld, priority: 1}
+  - {name: Kraken, ats: lever, token: kraken, priority: 1}
+  - {name: Coinbase, ats: greenhouse, token: coinbase, priority: 1}
+  - {name: Robinhood, ats: greenhouse, token: robinhood, priority: 1}
+  - {name: Ripple, ats: greenhouse, token: ripple, priority: 1}
+  # AI and ML
+  - {name: OpenAI, ats: ashby, token: openai, priority: 2}
+  - {name: Anthropic, ats: greenhouse, token: anthropic, priority: 2}
+  - {name: Cohere, ats: ashby, token: cohere, priority: 2}
+  - {name: Scale AI, ats: greenhouse, token: scaleai, priority: 2}
+  - {name: xAI, ats: greenhouse, token: xai, priority: 2}
+  - {name: Runway, ats: ashby, token: runway, priority: 2}
+  - {name: ElevenLabs, ats: ashby, token: elevenlabs, priority: 2}
+  - {name: DeepL, ats: ashby, token: deepl, priority: 2}
+  - {name: Synthesia, ats: ashby, token: synthesia, priority: 2}
+  - {name: Wayve, ats: ashby, token: wayve, priority: 2}
+  - {name: Cerebras, ats: ashby, token: cerebras, priority: 2}
+  - {name: Tenstorrent, ats: greenhouse, token: tenstorrent, priority: 2}
+  - {name: Graphcore, ats: greenhouse, token: graphcore, priority: 2}
+  - {name: Lambda, ats: ashby, token: lambda, priority: 2}
+  - {name: CoreWeave, ats: greenhouse, token: coreweave, priority: 2}
+  - {name: Together AI, ats: greenhouse, token: togetherai, priority: 2}
+  - {name: Modal, ats: ashby, token: modal, priority: 2}
+  - {name: Pinecone, ats: ashby, token: pinecone, priority: 2}
+  - {name: Weaviate, ats: ashby, token: weaviate, priority: 2}
+  - {name: LangChain, ats: ashby, token: langchain, priority: 2}
+  - {name: LlamaIndex, ats: ashby, token: llamaindex, priority: 2}
+  - {name: OpenEvidence, ats: ashby, token: openevidence, priority: 2}
+  - {name: Nebius, ats: greenhouse, token: nebius, priority: 2}
+  - {name: Toloka, ats: greenhouse, token: toloka, priority: 2}
+  - {name: Waymo, ats: greenhouse, token: waymo, priority: 2}
+  - {name: Nuro, ats: greenhouse, token: nuro, priority: 2}
+  - {name: Zoox, ats: lever, token: zoox, priority: 2}
+  - {name: Palantir, ats: lever, token: palantir, priority: 2}
+  # Data, databases and infrastructure
+  - {name: Databricks, ats: greenhouse, token: databricks, priority: 2}
+  - {name: Snowflake, ats: ashby, token: snowflake, priority: 2}
+  - {name: Confluent, ats: ashby, token: confluent, priority: 2}
+  - {name: Elastic, ats: greenhouse, token: elastic, priority: 2}
+  - {name: MongoDB, ats: greenhouse, token: mongodb, priority: 2}
+  - {name: Cockroach Labs, ats: greenhouse, token: cockroachlabs, priority: 2}
+  - {name: SingleStore, ats: greenhouse, token: singlestore, priority: 2}
+  - {name: PlanetScale, ats: greenhouse, token: planetscale, priority: 2}
+  - {name: Supabase, ats: ashby, token: supabase, priority: 2}
+  - {name: Datadog, ats: greenhouse, token: datadog, priority: 2}
+  - {name: New Relic, ats: greenhouse, token: newrelic, priority: 2}
+  - {name: Sentry, ats: ashby, token: sentry, priority: 2}
+  - {name: PostHog, ats: ashby, token: posthog, priority: 2}
+  - {name: Grafana Labs, ats: greenhouse, token: grafanalabs, priority: 2}
+  - {name: Fastly, ats: greenhouse, token: fastly, priority: 2}
+  - {name: Netlify, ats: greenhouse, token: netlify, priority: 2}
+  - {name: Vercel, ats: greenhouse, token: vercel, priority: 2}
+  - {name: Docker, ats: ashby, token: docker, priority: 2}
+  - {name: Canonical, ats: greenhouse, token: canonical, priority: 2}
+  - {name: GitLab, ats: greenhouse, token: gitlab, priority: 2}
+  - {name: JetBrains, ats: greenhouse, token: jetbrains, priority: 2}
+  - {name: Algolia, ats: greenhouse, token: algolia, priority: 2}
+  - {name: Twilio, ats: greenhouse, token: twilio, priority: 2}
+  - {name: Mixpanel, ats: greenhouse, token: mixpanel, priority: 2}
+  - {name: Amplitude, ats: ashby, token: amplitude, priority: 2}
+  - {name: Contentful, ats: greenhouse, token: contentful, priority: 2}
+  - {name: Samsara, ats: greenhouse, token: samsara, priority: 2}
+  - {name: SpaceX, ats: greenhouse, token: spacex, priority: 2}
+  - {name: Relativity Space, ats: greenhouse, token: relativity, priority: 2}
+  - {name: Mozilla, ats: greenhouse, token: mozilla, priority: 2}
+  - {name: Wikimedia, ats: greenhouse, token: wikimedia, priority: 2}
+  # Product and fintech
+  - {name: Stripe, ats: greenhouse, token: stripe, priority: 3}
+  - {name: Figma, ats: greenhouse, token: figma, priority: 3}
+  - {name: Notion, ats: ashby, token: notion, priority: 3}
+  - {name: Discord, ats: greenhouse, token: discord, priority: 3}
+  - {name: Dropbox, ats: greenhouse, token: dropbox, priority: 3}
+  - {name: Airbnb, ats: greenhouse, token: airbnb, priority: 3}
+  - {name: Lyft, ats: greenhouse, token: lyft, priority: 3}
+  - {name: Instacart, ats: greenhouse, token: instacart, priority: 3}
+  - {name: Plaid, ats: ashby, token: plaid, priority: 3}
+  - {name: Brex, ats: greenhouse, token: brex, priority: 3}
+  - {name: Ramp, ats: ashby, token: ramp, priority: 3}
+  - {name: Monzo, ats: greenhouse, token: monzo, priority: 3}
+  - {name: Wise, ats: greenhouse, token: wise, priority: 3}
+  - {name: N26, ats: greenhouse, token: n26, priority: 3}
+  - {name: Adyen, ats: greenhouse, token: adyen, priority: 3}
+  - {name: Bolt, ats: ashby, token: bolt, priority: 3}
+  - {name: Wolt, ats: greenhouse, token: wolt, priority: 3}
+  - {name: Miro, ats: ashby, token: miro, priority: 3}
+  # Kazakhstan
+  - {name: BCC (Bank CenterCredit), ats: greenhouse, token: bcc, priority: 1}
+
+  # --- added 2026-11-27 from the owner's list (each board checked: jobs > 0) ---
+  # Kazakhstan
+  - {name: Higgsfield AI, ats: ashby, token: higgsfieldai, priority: 1}
+  - {name: Freedom24 (Freedom Holding), ats: workable, token: freedomfinanceeu, priority: 1}
+  # Trading, quant, crypto
+  - {name: Five Rings, ats: greenhouse, token: fiveringsllc, priority: 1}
+  - {name: Mako, ats: greenhouse, token: mako, priority: 1}
+  - {name: Squarepoint, ats: greenhouse, token: squarepointcapital, priority: 1}
+  - {name: GSR, ats: greenhouse, token: gsrmarkets, priority: 1}
+  - {name: Flowdesk, ats: greenhouse, token: flowdesk, priority: 1}
+  - {name: Jump Crypto, ats: greenhouse, token: jumpcrypto, priority: 1}
+  - {name: Amber Group, ats: lever, token: ambergroup, priority: 1}
+  - {name: Binance, ats: greenhouse, token: binance, priority: 2}
+  - {name: Bybit, ats: greenhouse, token: bybit, priority: 2}
+  - {name: OKX, ats: greenhouse, token: okx, priority: 2}
+  # AI / ML
+  - {name: Hugging Face, ats: workable, token: huggingface, priority: 2}
+

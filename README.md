@@ -13,8 +13,8 @@ plan: [docs/plan.html](docs/plan.html) · parked for later: [docs/TODO.md](docs/
 
 | sprint | scope | state |
 |---|---|---|
-| S0 | skeleton: config, SQLite + migrations, state machines, events, task queue, LLM router, bot (`/status` `/pause` `/resume`), systemd, provisioning, CI | in review |
-| S1 | sources, prefilter, dedupe, daily digest | next |
+| S0 | skeleton: config, SQLite + migrations, state machines, events, task queue, LLM router, bot (`/status` `/pause` `/resume`), systemd, provisioning, CI | done, deployed |
+| S1 | 10 sources, prefilter, dedupe, closures, daily digest | in review |
 | S2–S6 | labeling, tailoring, applying, inbox, hardening | planned |
 
 ## Ground rules (enforced in code)
@@ -72,6 +72,9 @@ git clone https://github.com/zhandosayupov/job-pipeline.git /tmp/jp && bash /tmp
 | `jobpipe task list [--status dead]` | inspect the queue |
 | `jobpipe pause` / `resume` / `status` | same as the bot commands |
 | `jobpipe llm ping` | one call through the LLM router |
+| `jobpipe run collect [--sources a,b] [--dry-run]` | fetch sources, prefilter, dedupe (timer: every 3 h, 08–23) |
+| `jobpipe run digest [--dry-run]` | daily digest to Telegram (timer: 09:00) |
+| `jobpipe jobs list [--state S]` / `jobs dropped` | inspect jobs, audit the filters |
 | `jobpipe backup` | online SQLite backup (timer: 03:00 Almaty) |
 | `jobpipe run retention [--dry-run]` | delete / compact old rows (timer: 04:00 Almaty) |
 | `jobpipe effects list` / `effects resolve KEY done\|failed\|reset` | settle actions whose outcome is unknown |

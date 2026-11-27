@@ -10,6 +10,41 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
   to a market-based answer instead of asking the owner every time. Until then: always ask
   (ADR 0016), or `posting_range` for postings that publish a range.
 
+## Sources not in S1
+
+- **Sites rendered by JavaScript: parse later in the browser worker** (the laptop, Playwright, ADR 0006).
+  These are read-only page loads, paced like `Http`, honouring robots.txt; a captcha or 403/429 still
+  stops the site. Planned as a `worker.scrape` task type with one small parser per site:
+  * Big tech: Apple (jobs.apple.com), Microsoft (careers.microsoft.com), Netflix (jobs.netflix.com),
+    ByteDance/TikTok (jobs.bytedance.com).
+  * AI: Mistral (mistral.ai/careers).
+  * Quant and crypto: D. E. Shaw, QRT, Wintermute, Auros.
+  * Kazakhstan: inDrive (careers.indrive.com), Halyk Bank, Halyk Finance.
+  * Boards: getmatch, Remowork; Booking.com, SIG and Spotify (their sitemaps have no vacancy pages).
+- **dsml.kz/jobs** (KZ data/ML board): robots.txt allows it, and its sitemap lists 54 job category
+  pages, but `/jobs` and the category pages answered 429 on 2026-11-27. Retry later from the laptop
+  worker at a slow pace; if it still answers 429, ask the site for access.
+- **Owner's list, checked on 2026-11-27, not collected** (the reason in brackets):
+  * 403 to our requests, so we stop (ADR 0012): Citadel, Citadel Securities, Two Sigma, Astana Hub.
+  * No vacancy pages with JobPosting in the sitemap: Booking.com, SIG, Spotify, Halyk Bank, Halyk Finance, Nebius careers (Nebius is collected through Greenhouse instead).
+  * No sitemap, or the job pages are rendered by JavaScript: Apple, Microsoft, Netflix, ByteDance/TikTok, Mistral, D. E. Shaw, QRT, Wintermute, Auros.
+  * Uber: the sitemap leads to rider and driver pages (HTTP 406).
+  * Yandex: there is no jobs sitemap.
+  * KZ banks and telcos (Kcell, Beeline/QazCode, ForteBank, Bereke, Sergek): they post through hh.kz, so turn on the `hh` source.
+- **Career sites checked on 2026-11-27 and left out**:
+  * Google: robots.txt disallows `/about/careers/applications/jobs/results`.
+  * careers.indrive.com: vacancy pages came back empty (rendered by JavaScript), so they need the worker.
+  * kolesa.group: no vacancy sitemap.
+  * getmatch and relocate.me search pages are rendered by JavaScript (relocate.me is collected through its jobs sitemap instead).
+  * EPAM: `/api` is disallowed; check its sitemap.
+  * Workday tenants beyond Nvidia: find each company's host, tenant and site.
+
+- **LinkedIn** (discovery only, ADR 0011): `python-jobspy` pulls in pandas, too heavy for the 1 GB VM.
+  Options: run it on the laptop worker (S4), or a small own client for the public guest search.
+- **relocate.me**: HTML listing pages (robots.txt allows them; `/api/` is disallowed).
+- **Habr Career, getmatch, Remowork**: JS-heavy, need the browser worker (S4).
+- **hh.kz**: saved-search email alerts parsed from Gmail (S5) and search pages in the worker (S4).
+
 ## Production
 
 - **Production checks that alert when something breaks.** Unit tests only cover the code; on the

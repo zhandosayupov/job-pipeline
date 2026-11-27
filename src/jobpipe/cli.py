@@ -109,8 +109,78 @@ def cmd_run(cfg: AppConfig, args) -> int:
               ", ".join(f"{k} {v}" for k, v in counts.items()))
         log.info("retention finished", extra={"data": {"dry_run": args.dry_run, **counts}})
         return 0
+    if args.what == "collect":
+        return _run_collect(cfg, conn, args)
+    if args.what == "digest":
+        from .services import digest
+
+        if args.dry_run:
+            d = digest.build(conn, SystemClock(), cfg.settings.timezone, cfg.sources.digest_max_items)
+            print("\n\n---\n\n".join(d.messages))
+            return 0
+        sent = digest.send(conn, SystemClock(), _notifier(cfg), cfg.settings.timezone, cfg.sources.digest_max_items)
+        if sent is None:
+            print("digest not delivered; jobs stay pending for the next digest", file=sys.stderr)
+            return 1
+        print(f"digest sent: {len(sent.job_ids)} jobs in {len(sent.messages)} message(s)")
+        return 0
     print(f"`run {args.what}` arrives in a later sprint", file=sys.stderr)
     return 2
+
+
+def _run_collect(cfg: AppConfig, conn, args) -> int:
+    """Fetch sources. --dry-run works on a temporary copy of the database and prints what it found."""
+    import tempfile
+
+    from .adapters.http import Http
+    from .adapters.storage.db import connect, migrate
+    from .services.backup import backup_db
+    from .services.collect import Collector
+
+    h = cfg.sources.http
+    http = Http(user_agent=h.user_agent, min_interval_s=h.min_interval_s, timeout_s=h.timeout_s,
+                respect_robots=h.respect_robots)
+    only = args.sources.split(",") if args.sources else None
+    notifier = _notifier(cfg)
+    if args.dry_run:
+        tmp = Path(tempfile.mkdtemp(prefix="jobpipe-dry-"))
+        copy = backup_db(conn, tmp, SystemClock(), keep=1)
+        conn = connect(copy)
+        migrate(conn)
+        from .adapters.notifier.telegram import RecordingNotifier
+
+        notifier = RecordingNotifier()
+    results = Collector(conn, SystemClock(), cfg, http, notifier).run(only)
+    for r in results:
+        err = f"  {r.errors[0][:100]}" if r.errors else ""
+        print(f"{r.source:11} {r.status:8} fetched {r.fetched:4} new {r.new:4} kept {r.kept:4} "
+              f"dropped {r.dropped:4} closed {r.closed:3}{err}")
+    if args.dry_run:
+        rows = conn.execute("SELECT drop_rule, COUNT(*) n FROM jobs WHERE drop_rule IS NOT NULL GROUP BY 1").fetchall()
+        print("dropped by rule: " + ", ".join(f"{r['drop_rule']} {r['n']}" for r in rows))
+        print("dry run: the real database was not changed")
+    return 0
+
+
+def cmd_jobs(cfg: AppConfig, args) -> int:
+    """Inspect jobs: `jobs list --state prefiltered`, `jobs dropped` (audit the filters)."""
+    conn = open_db(cfg.paths.db_path)
+    if args.action == "dropped":
+        rows = conn.execute(
+            "SELECT id, title, company, drop_rule, data_json FROM jobs WHERE state = 'dropped' "
+            "ORDER BY updated_at DESC LIMIT ?", (args.limit,)).fetchall()
+        for r in rows:
+            print(f"{r['drop_rule'] or '':16} {r['company'][:24]:24} {r['title'][:60]}")
+        return 0
+    q = "SELECT id, state, company, title, url, digested_at FROM jobs"
+    params: tuple = ()
+    if args.state:
+        q += " WHERE state = ?"
+        params = (args.state,)
+    for r in conn.execute(q + " ORDER BY created_at DESC LIMIT ?", (*params, args.limit)).fetchall():
+        mark = "*" if r["digested_at"] else " "
+        print(f"{mark} {r['state']:11} {r['company'][:24]:24} {r['title'][:55]:55} {r['url']}")
+    return 0
 
 
 def cmd_effects(cfg: AppConfig, args) -> int:
@@ -221,8 +291,16 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("what", choices=["queue", "retention", "collect", "label", "tailor", "inbox", "digest"])
     run.add_argument("--max-seconds", type=float, default=None)
     run.add_argument("--types", help="comma-separated task types to take")
-    run.add_argument("--dry-run", action="store_true", help="retention: count, change nothing")
+    run.add_argument("--sources", help="collect: comma-separated source names (also runs disabled ones)")
+    run.add_argument("--dry-run", action="store_true",
+                     help="retention/collect: work on a copy, change nothing; digest: print instead of sending")
     run.set_defaults(fn=cmd_run)
+
+    jobs = sub.add_parser("jobs", help="inspect collected jobs")
+    jobs.add_argument("action", choices=["list", "dropped"])
+    jobs.add_argument("--state")
+    jobs.add_argument("--limit", type=int, default=30)
+    jobs.set_defaults(fn=cmd_jobs)
 
     eff = sub.add_parser("effects", help="external actions whose outcome needs your decision")
     eff_sub = eff.add_subparsers(dest="action", required=True)

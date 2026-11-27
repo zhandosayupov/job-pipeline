@@ -127,8 +127,10 @@ def test_status_render():
                    {"provider": "gemini", "model": "gemini-flash-latest", "calls": 2, "ok": 0, "tokens": 0}],
         providers={"gemini": "cooldown until 06:01 UTC"},
         db_size_kb=64,
+        sources={"greenhouse": "ok", "hn": "blocked"},
     )
     out = render(snap)
+    assert "Источники: ok 1 · проблемы: hn (blocked)" in out
     assert "26.11 11:00 (Asia/Almaty)" in out
     assert "ВКЛЮЧЕНА" in out
     assert "dead 1, pending 2" in out and "к запуску сейчас 1" in out

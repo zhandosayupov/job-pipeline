@@ -1,0 +1,359 @@
+{
+ "jobs": [
+  {
+   "absolute_url": "https://job-boards.eu.greenhouse.io/imc/jobs/5036428101",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "education": "education_required",
+   "internal_job_id": null,
+   "location": {
+    "name": "Sydney,  Australia"
+   },
+   "metadata": [
+    {
+     "id": 6607939101,
+     "name": "Vieple Interview Code",
+     "value": null,
+     "value_type": "long_text"
+    },
+    {
+     "id": 6516337101,
+     "name": "Worker Sub Type",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6886352101,
+     "name": "Job Category",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6894400101,
+     "name": "Career Site Locale",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6963404101,
+     "name": "Exclude Resume",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6963467101,
+     "name": "Exclude Education Section",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6516608101,
+     "name": "Is Hidden Job?",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 8112897101,
+     "name": "Send Job to Yello?",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 13611702101,
+     "name": "Uses AI Scoring?",
+     "value": null,
+     "value_type": "single_select"
+    }
+   ],
+   "id": 5036428101,
+   "updated_at": "2026-11-25T10:09:55-05:00",
+   "requisition_id": null,
+   "title": "2027 ANZ Chess Academy Interest Form",
+   "company_name": "IMC",
+   "first_published": "2026-11-15T22:27:27-05:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;Are you a student interested in learning more about the 2027 ANZ Chess Academy program? We invite you to fill out this form to share your information with us. By submitting the form, you&#39;ll be added to our prospect list so our team can reach out with details on upcoming opportunities, program updates, and how to play. We look forward to connecting with you!&lt;/p&gt;&lt;div class=&quot;content-conclusion&quot;&gt;&lt;p&gt;&lt;strong&gt;About Us&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;&lt;em&gt;IMC is a research-driven trading firm where quantitative modeling, machine learning, and engineering shape how modern markets are traded. A stabilizing force in markets since 1989, we provide liquidity across trading venues, delivering the best outcome in value and risk management to investors. Using our own technology and capital, we build proprietary systems and algorithms that operate across global markets. Our researchers, traders, and engineers work as a collective, combining rapid experimentation, advanced infrastructure, and real-time feedback to turn insight into execution and execution into advantage.&lt;/em&gt;&lt;/p&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;&lt;/div&gt;",
+   "departments": [],
+   "offices": [],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": false,
+   "ai_opt_out_request_url": null
+  },
+  {
+   "absolute_url": "https://job-boards.eu.greenhouse.io/imc/jobs/4940448101",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "education": "education_required",
+   "internal_job_id": null,
+   "location": {
+    "name": "Europe"
+   },
+   "metadata": [
+    {
+     "id": 6607939101,
+     "name": "Vieple Interview Code",
+     "value": null,
+     "value_type": "long_text"
+    },
+    {
+     "id": 6516337101,
+     "name": "Worker Sub Type",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6886352101,
+     "name": "Job Category",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6894400101,
+     "name": "Career Site Locale",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6963404101,
+     "name": "Exclude Resume",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6963467101,
+     "name": "Exclude Education Section",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6516608101,
+     "name": "Is Hidden Job?",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 8112897101,
+     "name": "Send Job to Yello?",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 13611702101,
+     "name": "Uses AI Scoring?",
+     "value": null,
+     "value_type": "single_select"
+    }
+   ],
+   "id": 4940448101,
+   "updated_at": "2026-11-25T10:09:55-05:00",
+   "requisition_id": null,
+   "title": "2027 EU Campus Programme Talent Community",
+   "company_name": "IMC",
+   "first_published": "2026-07-29T04:39:58-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;&lt;strong&gt;Join Our Talent Community&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;&lt;em&gt;One place to stay on our radar&lt;/em&gt;&lt;/p&gt;\n&lt;p&gt;Whether you see your future in quant research, trading, or technology - or you&#39;re still keeping an open mind - our range of insight programmes gives you the chance to experience what it&#39;s really like to work at the cutting edge of financial markets. From hands-on interactive sessions to trading simulations and coding challenges, you&#39;ll get a real taste of life at one of the world&#39;s leading trading firms.&lt;/p&gt;\n&lt;p&gt;Not sure yet which programme is the right fit for you? Tell us a bit about yourself and the areas that interest you, and we&#39;ll keep you in mind for the right opportunity down the line. The dates of the programmes are as follows:&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;Women in Trading &amp;amp; Technology 23-25 March&lt;/li&gt;\n&lt;li&gt;Launchpad 20-22 April&lt;/li&gt;\n&lt;li&gt;Accelerate 11-13 May&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;We&#39;ll let you know as soon as applications open, and keep you updated with news from across our European offices.&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;Joining the talent community isn&#39;t an application - it&#39;s just an easy first step, and it only takes about two minutes&lt;/p&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;\n&lt;p&gt;&lt;em&gt;&lt;strong&gt;Please note:&lt;/strong&gt; as these programmes only run for two days, we are unable to arrange or sponsor visas for candidates travelling to Amsterdam. If you would require a visa to attend, please be aware that we won&#39;t be able to support this.&lt;/em&gt;&lt;/p&gt;&lt;div class=&quot;content-conclusion&quot;&gt;&lt;p&gt;&lt;strong&gt;About Us&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;&lt;em&gt;IMC is a research-driven trading firm where quantitative modeling, machine learning, and engineering shape how modern markets are traded. A stabilizing force in markets since 1989, we provide liquidity across trading venues, delivering the best outcome in value and risk management to investors. Using our own technology and capital, we build proprietary systems and algorithms that operate across global markets. Our researchers, traders, and engineers work as a collective, combining rapid experimentation, advanced infrastructure, and real-time feedback to turn insight into execution and execution into advantage.&lt;/em&gt;&lt;/p&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;&lt;/div&gt;",
+   "departments": [],
+   "offices": [],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": false,
+   "ai_opt_out_request_url": null
+  },
+  {
+   "absolute_url": "https://job-boards.eu.greenhouse.io/imc/jobs/4981180101",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "education": "education_required",
+   "internal_job_id": null,
+   "location": {
+    "name": "Europe"
+   },
+   "metadata": [
+    {
+     "id": 6607939101,
+     "name": "Vieple Interview Code",
+     "value": null,
+     "value_type": "long_text"
+    },
+    {
+     "id": 6516337101,
+     "name": "Worker Sub Type",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6886352101,
+     "name": "Job Category",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6894400101,
+     "name": "Career Site Locale",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6963404101,
+     "name": "Exclude Resume",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6963467101,
+     "name": "Exclude Education Section",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6516608101,
+     "name": "Is Hidden Job?",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 8112897101,
+     "name": "Send Job to Yello?",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 13611702101,
+     "name": "Uses AI Scoring?",
+     "value": null,
+     "value_type": "single_select"
+    }
+   ],
+   "id": 4981180101,
+   "updated_at": "2026-11-25T10:09:55-05:00",
+   "requisition_id": null,
+   "title": "2027 EU Chess Academy Interest Form",
+   "company_name": "IMC",
+   "first_published": "2026-09-21T08:06:53-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;&lt;strong&gt;What if your next chess move took you to Amsterdam to play a world-class grandmaster?&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;The Chess Academy Europe is a one-of-a-kind programme open to all students across universities in the EU and the UK, whether you&#39;re a seasoned competitor or just love the game. In partnership with Team Liquid, IMC is bringing together the brightest student chess players in Europe for a chance to qualify through an online Swiss-format tournament on Chess.com and, if you advance, travel to Amsterdam to compete in the championship finals against the best student players on the continent.&lt;/p&gt;\n&lt;p&gt;This is more than a chess tournament. It&#39;s an opportunity to step inside one of the world&#39;s leading trading firms, connect with IMC&#39;s traders, researchers and technologists, and experience what it&#39;s like to think fast, compete hard, and perform under pressure. These are the skills that define both great chess players and the people who thrive at the world&#39;s top trading firms.&lt;/p&gt;\n&lt;p&gt;&lt;strong&gt;What You&#39;ll Do&lt;/strong&gt;&lt;/p&gt;\n&lt;ul&gt;\n&lt;li&gt;&lt;strong&gt;Compete at the highest level:&lt;/strong&gt; Qualify through an online Swiss-format tournament on Chess.com and, if you advance, travel to Amsterdam to compete in the championship finals against the best student players in Europe.&lt;/li&gt;\n&lt;li&gt;&lt;strong&gt;Play a world-class grandmaster:&lt;/strong&gt; All finalists take part in a showmatch experience with an elite grandmaster — a once-in-a-lifetime opportunity to sit across the board from one of the game&#39;s best.&lt;/li&gt;\n&lt;li&gt;&lt;strong&gt;Learn from the best:&lt;/strong&gt; Finalists will take part in an exclusive masterclass led by top grandmasters, an opportunity to hear how the world&#39;s elite players think about the game.&lt;/li&gt;\n&lt;li&gt;&lt;strong&gt;Go behind the scenes at IMC:&lt;/strong&gt; Tour IMC&#39;s Amsterdam office and get a firsthand look at the environment where some of the world&#39;s fastest and most sophisticated trading takes place.&lt;/li&gt;\n&lt;li&gt;&lt;strong&gt;Build your network:&lt;/strong&gt; Connect directly with IMC traders, researchers, technologists, and recruiters. Whether or not a career in trading is on your radar, this is a rare chance to meet and learn from world-class professionals.&lt;/li&gt;\n&lt;/ul&gt;\n&lt;p&gt;&lt;strong&gt;Ready to Apply?&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;Applications aren&#39;t open yet — register your interest through the form below and we&#39;ll be in touch in January when applications open.&lt;/p&gt;\n&lt;p&gt;Open to all enrolled students regardless of chess rating or experience level, and all majors and academic backgrounds. If you love the game and want to test yourself against the best, we want to hear from you.&lt;/p&gt;&lt;div class=&quot;content-conclusion&quot;&gt;&lt;p&gt;&lt;strong&gt;About Us&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;&lt;em&gt;IMC is a research-driven trading firm where quantitative modeling, machine learning, and engineering shape how modern markets are traded. A stabilizing force in markets since 1989, we provide liquidity across trading venues, delivering the best outcome in value and risk management to investors. Using our own technology and capital, we build proprietary systems and algorithms that operate across global markets. Our researchers, traders, and engineers work as a collective, combining rapid experimentation, advanced infrastructure, and real-time feedback to turn insight into execution and execution into advantage.&lt;/em&gt;&lt;/p&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;&lt;/div&gt;",
+   "departments": [],
+   "offices": [],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": false,
+   "ai_opt_out_request_url": null
+  },
+  {
+   "absolute_url": "https://job-boards.eu.greenhouse.io/imc/jobs/4974924101",
+   "data_compliance": [
+    {
+     "type": "gdpr",
+     "requires_consent": false,
+     "requires_processing_consent": false,
+     "requires_retention_consent": false,
+     "retention_period": null,
+     "demographic_data_consent_applies": false
+    }
+   ],
+   "education": "education_required",
+   "internal_job_id": null,
+   "location": {
+    "name": "Chicago, United States"
+   },
+   "metadata": [
+    {
+     "id": 6607939101,
+     "name": "Vieple Interview Code",
+     "value": null,
+     "value_type": "long_text"
+    },
+    {
+     "id": 6516337101,
+     "name": "Worker Sub Type",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6886352101,
+     "name": "Job Category",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6894400101,
+     "name": "Career Site Locale",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 6963404101,
+     "name": "Exclude Resume",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6963467101,
+     "name": "Exclude Education Section",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 6516608101,
+     "name": "Is Hidden Job?",
+     "value": null,
+     "value_type": "yes_no"
+    },
+    {
+     "id": 8112897101,
+     "name": "Send Job to Yello?",
+     "value": null,
+     "value_type": "single_select"
+    },
+    {
+     "id": 13611702101,
+     "name": "Uses AI Scoring?",
+     "value": null,
+     "value_type": "single_select"
+    }
+   ],
+   "id": 4974924101,
+   "updated_at": "2026-11-25T10:09:55-05:00",
+   "requisition_id": null,
+   "title": "2027 US Chess Academy Interest Form",
+   "company_name": "IMC",
+   "first_published": "2026-09-11T15:25:15-04:00",
+   "language": "en",
+   "application_deadline": null,
+   "content": "&lt;p&gt;Are you a student interested in learning more about the 2027 US Chess Academy program? We invite you to fill out this form to share your information with us. By submitting the form, you&#39;ll be added to our prospect list so our team can reach out with details on upcoming opportunities, program updates, and how to play. We look forward to connecting with you!&lt;/p&gt;&lt;div class=&quot;content-conclusion&quot;&gt;&lt;p&gt;&lt;strong&gt;About Us&lt;/strong&gt;&lt;/p&gt;\n&lt;p&gt;&lt;em&gt;IMC is a research-driven trading firm where quantitative modeling, machine learning, and engineering shape how modern markets are traded. A stabilizing force in markets since 1989, we provide liquidity across trading venues, delivering the best outcome in value and risk management to investors. Using our own technology and capital, we build proprietary systems and algorithms that operate across global markets. Our researchers, traders, and engineers work as a collective, combining rapid experimentation, advanced infrastructure, and real-time feedback to turn insight into execution and execution into advantage.&lt;/em&gt;&lt;/p&gt;\n&lt;p&gt;&amp;nbsp;&lt;/p&gt;&lt;/div&gt;",
+   "departments": [],
+   "offices": [],
+   "ai_disclaimer": null,
+   "include_ai_disclaimer": false,
+   "ai_opt_out_request_url": null
+  }
+ ],
+ "meta": {
+  "total": 149
+ }
+}
