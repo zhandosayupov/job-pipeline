@@ -125,7 +125,7 @@ See [ADR 0005](adr/0005-public-repo-private-home.md).
 | `runs` | each oneshot run: command, pid, `proc_start` (pid-reuse guard), host, start/finish, status. Used by the kill switch |
 | `llm_calls` | cost and usage ledger: provider, model, task, prompt version, tokens, latency, status |
 | `llm_daily` | daily roll-up of `llm_calls` older than the retention window |
-| `provider_state` | per-provider cooldown and circuit-breaker state |
+| `provider_state` | cooldown and circuit-breaker state per target (`provider` or `provider/model`, ADR 0004) |
 
 Old rows are deleted or compacted to their resolution daily ([ADR 0018](adr/0018-retention.md)).
 
@@ -324,5 +324,6 @@ from config from S1 on.
 | [0020](adr/0020-labeling-shortlist.md) | LLM labeling with verified output, shortlist, protected pool, cards, rating |
 | [0021](adr/0021-kb-truth-tailoring.md) | knowledge base, deterministic truth gate, tailoring plan, LaTeX, letter, approval |
 | [0022](adr/0022-applying.md) | worker API, form resolution on the VM, manifest hash, two-phase submit, appliers |
+| [0025](adr/0025-scheduling-whatsapp.md) | interview slots from iCal, invites + reminders, WhatsApp via the bot, placeholders from Telegram, kb extract |
 | [0024](adr/0024-selfcheck.md) | hourly selfcheck with one alert per failure, dead-man's switch, restore test, earned reply L2 |
 | [0023](adr/0023-inbox.md) | inbox: job-related mail only, triage, forward-only funnel moves, drafts the owner sends, userbot |

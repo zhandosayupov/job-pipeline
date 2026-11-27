@@ -325,6 +325,28 @@ def cmd_kb(cfg: AppConfig, args) -> int:
     from .services.truth import TruthGate
 
     kb_dir = Path(args.dir) if args.dir else cfg.paths.home / "kb"
+    if args.action == "extract":
+        from .services import kb_extract
+
+        if not args.file:
+            print("usage: jobpipe kb extract <cv.md>", file=sys.stderr)
+            return 2
+        conn = open_db(cfg.paths.db_path)
+        try:
+            kb = kbmod.load(kb_dir)       # its name, email, phone are pseudonymized in the request
+        except Exception as e:
+            # Without the profile, the name/email/phone in the CV could not be pseudonymized.
+            print(f"fill {kb_dir}/profile.yaml first (it is what gets pseudonymized): {e}", file=sys.stderr)
+            return 1
+        # router without the profile's values: nothing is restored into the draft (see kb_extract.extract)
+        res = kb_extract.extract(_router_factory(cfg, conn)(), Path(args.file).read_text(encoding="utf-8"),
+                                 kb.pii_values())
+        path = kb_extract.write_draft(res, kb_dir)
+        print(f"{len(res.roles)} roles, {len(res.facts)} facts -> {path} (review it; facts.yaml is untouched)")
+        if res.dropped:
+            # the reasons quote CV content: they are in the draft file's header, not on the console
+            print(f"  {len(res.dropped)} item(s) dropped by the checks: see the header of {path.name}")
+        return 0
     try:
         kb = kbmod.load(kb_dir)
     except Exception as e:
@@ -482,7 +504,11 @@ def cmd_selfcheck(cfg: AppConfig, args) -> int:
     from .services import selfcheck
 
     conn = open_db(cfg.paths.db_path)
-    checks = selfcheck.run(conn, SystemClock(), cfg, _notifier(cfg))
+    from .services.inbox import remind
+
+    notifier = _notifier(cfg)
+    checks = selfcheck.run(conn, SystemClock(), cfg, notifier, router_factory=_router_factory(cfg, conn))
+    remind(conn, SystemClock(), cfg, notifier)       # hourly, also at night (the inbox runs 08-23)
     for c in checks:
         print(f"{'ok  ' if c.ok else 'FAIL'} {c.name}{': ' + c.detail if c.detail else ''}")
     return 0 if all(c.ok for c in checks) else 1
@@ -523,7 +549,8 @@ def build_parser() -> argparse.ArgumentParser:
     ub.set_defaults(fn=cmd_userbot)
 
     kbp = sub.add_parser("kb", help="knowledge base tools")
-    kbp.add_argument("action", choices=["check"])
+    kbp.add_argument("action", choices=["check", "extract"])
+    kbp.add_argument("file", nargs="?", help="extract: your CV as text/markdown")
     kbp.add_argument("--dir", help="kb directory (default: $JOBPIPE_HOME/kb)")
     kbp.set_defaults(fn=cmd_kb)
 

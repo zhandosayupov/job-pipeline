@@ -47,8 +47,7 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
 
 ## Tailoring (after S3)
 
-- **KB extraction helper**: `jobpipe kb extract cv_canonical.md` drafting `facts.yaml` with the LLM
-  (pseudonymized) for the owner to review, instead of writing it by hand.
+- ~~KB extraction helper~~: done in S7 (`jobpipe kb extract`).
 - **Owner's LaTeX templates**: adapt `cv_*_hft.tex` / `cv_*_generic.tex` to the placeholders of
   `templates/cv.tex` and pick the template by `resume_variant`.
 - **tectonic on the VM**: the binary plus its bundle cache is several hundred MB; compile on the laptop
@@ -70,8 +69,10 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
 
 - **hh.kz chat** read in the browser worker (today: hh e-mail notifications are triaged, replies go on hh).
 - **LinkedIn job-alert e-mails** as postings (company is plain text, not a link: needs a parser).
-- **Answer a placeholder from Telegram**: reply to the card with the value instead of editing in Gmail.
-- **Calendar slots** for interview invites instead of the `[[ВПИШИ: удобное время]]` placeholder.
+- ~~Answer a placeholder from Telegram~~, ~~calendar slots~~: done in S7 (ADR 0025).
+- **Recurring calendar events (RRULE)**: only the first occurrence counts as busy today.
+- **WhatsApp Web reader** on the laptop (read-only, no auto-send); ToS/ban risk, so opt-in only.
+- **Save a filled placeholder to answers.yaml** (one tap: reuse the answer next time).
 
 ## Production
 
@@ -85,10 +86,7 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
 
 ## Doc nits
 
-- `docs/adr/0018-retention.md`: add the cleanup of idle `provider_state` rows to the list of what
-  retention deletes.
-- `docs/architecture.md` (data model table): `provider_state` is per target (`provider/model`), not
-  "per-provider" (ADR 0004 already says so).
+- ~~ADR 0018 provider_state, architecture provider_state~~: done in S7.
 
 ## Tooling
 

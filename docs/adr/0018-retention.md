@@ -21,6 +21,8 @@ to count the funnel.
 | finished jobs (`dropped`, `skipped`, `closed`) | 30 days | row kept, `data_json` reduced to `keep_fields` + `resolution` |
 | finished applications (terminal states) | 180 days | same |
 | done/failed side effects | 90 days | key kept forever (idempotency), payload dropped |
+| idle `provider_state` rows (no failures, cooldown and breaker expired) | every run | deleted |
+| messages (S5) | 120 days | headers, category and triage kept; body and links dropped |
 
 * Rows that need the owner (`needs_human`, unknown side effects) are never compacted.
 * New databases use `auto_vacuum=INCREMENTAL`; retention ends with `PRAGMA incremental_vacuum`

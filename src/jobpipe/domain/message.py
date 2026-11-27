@@ -5,7 +5,7 @@ import hashlib
 from dataclasses import dataclass, field
 from typing import Literal
 
-Channel = Literal["gmail", "telegram"]
+Channel = Literal["gmail", "telegram", "whatsapp"]
 
 
 @dataclass
@@ -23,6 +23,7 @@ class InMessage:
     references: list[str] = field(default_factory=list)
     thread_key: str | None = None      # Gmail X-GM-THRID or Telegram chat id, when the channel gives one
     direction: Literal["in", "out"] = "in"
+    invites: list[str] = field(default_factory=list)   # text/calendar parts (.ics), S7
     auto: bool = False                 # Auto-Submitted / Precedence: bulk / List-Id: sent by a machine
 
     @property

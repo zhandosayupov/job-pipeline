@@ -1,0 +1,58 @@
+# Еженедельный аудит безопасности и зависимостей. Находки — одним issue с меткой claude-audit.
+# Можно запустить вручную: Actions → Claude Audit → Run workflow.
+name: Claude Audit
+
+on:
+  schedule:
+    - cron: "0 3 * * 1" # понедельник, 09:00 по Алматы
+  workflow_dispatch:
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 50
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          version: "0.13.8"
+
+      - name: Install the project, export pinned requirements for pip-audit
+        run: |
+          uv sync --locked
+          uv export --locked --no-dev --no-hashes --format requirements-txt > /tmp/requirements.txt
+          uv tool install pip-audit
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            REPO: ${{ github.repository }}
+
+            Проведи еженедельный аудит проекта jobpipe (self-hosted job-search pipeline, см. CLAUDE.md и
+            docs/architecture.md):
+            1. Запусти `pip-audit -r /tmp/requirements.txt` — уязвимые зависимости и версии с исправлением.
+            2. Запусти `uv run python tools/leak_guard.py --all` — секреты и персональные данные в репозитории.
+            3. Просмотри коммиты за последние 7 дней (`git log --since="7 days ago" -p`) на нарушения правил
+               из CLAUDE.md: секреты или персональные данные в коде, фикстурах и промптах; отправка чего-либо
+               от имени владельца в обход side_effects / ctx.guard(); автоотправка сообщений или ответы на
+               чувствительные темы сгенерированным текстом; обход капчи/2FA/403/robots; сгенерированный
+               текст, добавляющий факты в обход truth gate; изменение состояния мимо
+               services.events.transition(); SQL-инъекции, небезопасный subprocess, сетевые вызовы в тестах.
+            4. Запусти `uv run pytest -q` и `uv run ruff check .`.
+
+            Если нашлись реальные проблемы — создай ОДИН issue через `gh issue create`
+            с заголовком «Аудит безопасности: <дата>», меткой claude-audit и списком находок
+            по важности (🔴/🟠/🟡), с файлами и строками и предложением исправления. Пиши по-русски.
+            Перед созданием проверь `gh issue list --label claude-audit --state open`: не дублируй
+            находки из открытого issue. Если проблем нет — issue не создавай.
+          claude_args: |
+            --max-turns 30
+            --allowedTools "Read,Glob,Grep,Bash(pip-audit:*),Bash(uv run python tools/leak_guard.py:*),Bash(uv run pytest:*),Bash(uv run ruff check:*),Bash(git log:*),Bash(git diff:*),Bash(git show:*),Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh label create:*)"

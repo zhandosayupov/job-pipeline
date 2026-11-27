@@ -98,6 +98,14 @@ def parse_email(raw: bytes, *, thread_key: str | None = None, body_chars: int = 
         text = html_to_text(html)
     auto = bool(msg.get("Auto-Submitted", "no").lower() != "no" or
                 msg.get("Precedence", "").lower() in ("bulk", "list", "junk") or msg.get("List-Id"))
+    invites = []
+    for part in msg.walk():
+        if part.get_content_type() == "text/calendar" or (part.get_filename() or "").lower().endswith(".ics"):
+            try:
+                payload = part.get_payload(decode=True) or b""
+                invites.append(payload.decode(part.get_content_charset() or "utf-8", "replace")[:20000])
+            except (LookupError, AttributeError):
+                pass
     msg_id = (_ids(str(msg.get("Message-ID", ""))) or [f"<no-id-{hash(raw) & 0xffffffff:x}@jobpipe>"])[0]
     return InMessage(
         channel="gmail",
@@ -113,6 +121,7 @@ def parse_email(raw: bytes, *, thread_key: str | None = None, body_chars: int = 
         in_reply_to=(_ids(str(msg.get("In-Reply-To", ""))) or [None])[0],
         references=_ids(str(msg.get("References", ""))),
         thread_key=thread_key,
+        invites=invites,
         auto=auto,
     )
 

@@ -457,7 +457,7 @@ def load_config(home: Path | None = None, env: dict[str, str] | None = None) -> 
     if paths.secrets_file.exists():
         values.update(parse_env_file(paths.secrets_file.read_text(encoding="utf-8")))
     environ = os.environ if env is None else env
-    wanted = {settings.telegram.token_env, "WORKER_TOKEN", "GMAIL_APP_PASSWORD",
+    wanted = {settings.telegram.token_env, "WORKER_TOKEN", "GMAIL_APP_PASSWORD", "CALENDAR_ICS_URL",
               *(p.key_env for p in llm.providers.values())}
     for key in wanted:
         if environ.get(key):
