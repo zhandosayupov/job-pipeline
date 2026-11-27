@@ -278,7 +278,7 @@ class SourcesCfg(_Model):
 
 class CompanyCfg(_Model):
     name: str
-    ats: Literal["greenhouse", "ashby", "lever"]
+    ats: Literal["greenhouse", "ashby", "lever", "workable"]
     token: str
     priority: int = 2
     enabled: bool = True
