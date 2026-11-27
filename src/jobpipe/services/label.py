@@ -65,6 +65,8 @@ class LabelBatch(BaseModel):
 
 
 LIMITS = {"level": 25, "stack": 25, "legal": 25, "comp": 15}
+LEGAL_UNKNOWN = 8          # prompts/label/v1.md: "unknown = 8"
+MAX_MISSES = 3             # a job the model leaves out of its answer this many times is dropped
 
 
 def fresh_points(posted_at: str | None, now: datetime) -> int:
@@ -111,6 +113,11 @@ def verify(label: JobLabel, text: str, posted_at: str | None, now: datetime) -> 
         if label.remote_scope not in ("unknown", "n/a"):
             out["remote_scope"] = "unknown"
             out["unverified"] = [*out.get("unverified", []), "remote_scope"]
+    # The legal points come from the same claims: with no quoted visa or remote claim left, the
+    # rubric's "unknown" value is the most they can be worth (S2 review: no score from a rejected claim).
+    if out.get("unverified") and out["visa"] == "unknown" and out["remote_scope"] in ("unknown", "n/a"):
+        b["legal"] = min(b["legal"], LEGAL_UNKNOWN)
+        out["score"] = sum(b.values())
     return out
 
 
@@ -175,7 +182,16 @@ def run(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, router, notifier
         for row in batch:
             lab = labels.get(row["id"])
             if lab is None:
-                continue  # stays prefiltered; picked up next run
+                # stays prefiltered and is retried, but not forever (S2 review: tokens every run)
+                data = json.loads(row["data_json"] or "{}")
+                data["label_misses"] = int(data.get("label_misses", 0)) + 1
+                conn.execute("UPDATE jobs SET data_json = ? WHERE id = ?",
+                             (json.dumps(data, ensure_ascii=False), row["id"]))
+                if data["label_misses"] >= MAX_MISSES:
+                    transition(conn, clock, "job", row["id"], "dropped", expected="prefiltered", actor="label",
+                               data={"rule": "label_missing", "misses": data["label_misses"]})
+                    conn.execute("UPDATE jobs SET drop_rule = 'label_missing' WHERE id = ?", (row["id"],))
+                continue
             data = json.loads(row["data_json"] or "{}")
             text = "\n".join(filter(None, [row["title"], row["location"], data.get("remote_text"),
                                            data.get("description")]))
