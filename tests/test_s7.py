@@ -86,7 +86,7 @@ def test_calendar_invite_records_interview_and_reminds_once(env, app_cfg, clock)
     assert conn.execute("SELECT state FROM applications WHERE id = ?", (app,)).fetchone()[0] == "interview"
     invite = next(m for m in n.messages if "📅" in m)
     links = [urlsplit(u).hostname for u in re.findall(r"https://\S+", invite)]
-    assert "14:00 (Алматы)" in invite and "meet.google.com" in links
+    assert "14:00 (Алматы)" in invite and any(h == "meet.google.com" for h in links)
     clock.advance(4 * 86400 + 4 * 3600)                   # Nov 30 10:00 UTC: 23 h before
     assert ib.remind(conn, clock, app_cfg, n) == 1 and "завтра" in n.messages[-1]
     assert ib.remind(conn, clock, app_cfg, n) == 0
