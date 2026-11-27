@@ -67,3 +67,9 @@ inbox:                      # S5 (ADR 0023): Gmail over IMAP with an app passwor
   # Only job-related mail is read further: replies in tracked threads, these senders, or job words.
   alert_senders: [hh.kz, hh.ru, jobalerts-noreply@linkedin.com]
   ignore_senders: []        # never read, e.g. a newsletter that mentions jobs
+
+selfcheck:                  # S6: `jobpipe selfcheck` hourly; one alert per failure, one on recovery
+  ping_url: null            # dead-man's switch, e.g. a free healthchecks.io check URL (alerts if pings stop)
+  task_overdue_min: 30
+  worker_stale_hours: 24
+  source_stale_hours: 30

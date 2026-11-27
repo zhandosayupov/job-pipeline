@@ -117,6 +117,15 @@ def cmd_bot(cfg: AppConfig, args) -> int:
 
 def cmd_run(cfg: AppConfig, args) -> int:
     conn = open_db(cfg.paths.db_path)
+    code = _run(cfg, conn, args)
+    if code == 0:
+        from .services.selfcheck import touch
+
+        touch(conn, SystemClock(), args.what)
+    return code
+
+
+def _run(cfg: AppConfig, conn, args) -> int:
     if args.what == "queue":
         from .workers.handlers import HANDLERS
         from .workers.runner import Runner
@@ -445,6 +454,16 @@ def cmd_backup(cfg: AppConfig, args) -> int:
     from .services.backup import backup_db, upload
 
     conn = open_db(cfg.paths.db_path)
+    if args.verify:
+        from .services.backup import verify_restore
+
+        files = sorted((cfg.paths.data_dir / "backups").glob("jobpipe-*.db"))
+        if not files:
+            print("no backups yet", file=sys.stderr)
+            return 1
+        counts = verify_restore(files[-1], cfg.paths.data_dir / "restore-test")
+        print(f"restore test ok: {files[-1].name} " + ", ".join(f"{k} {v}" for k, v in counts.items()))
+        return 0
     path = backup_db(conn, cfg.paths.data_dir / "backups", SystemClock(), keep=cfg.settings.backup.keep)
     print(f"backup written: {path}")
     if cfg.settings.backup.upload_cmd:
@@ -453,7 +472,20 @@ def cmd_backup(cfg: AppConfig, args) -> int:
         else:
             upload(path, cfg.settings.backup.upload_cmd)
             print("uploaded")
+    from .services.selfcheck import touch
+
+    touch(conn, SystemClock(), "backup")
     return 0
+
+
+def cmd_selfcheck(cfg: AppConfig, args) -> int:
+    from .services import selfcheck
+
+    conn = open_db(cfg.paths.db_path)
+    checks = selfcheck.run(conn, SystemClock(), cfg, _notifier(cfg))
+    for c in checks:
+        print(f"{'ok  ' if c.ok else 'FAIL'} {c.name}{': ' + c.detail if c.detail else ''}")
+    return 0 if all(c.ok for c in checks) else 1
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -531,7 +563,11 @@ def build_parser() -> argparse.ArgumentParser:
     llm.add_argument("--word", default="pong")
     llm.set_defaults(fn=cmd_llm)
 
-    sub.add_parser("backup", help="online SQLite backup (+ optional upload)").set_defaults(fn=cmd_backup)
+    bk = sub.add_parser("backup", help="online SQLite backup (+ optional upload)")
+    bk.add_argument("--verify", action="store_true", help="restore test of the latest backup instead")
+    bk.set_defaults(fn=cmd_backup)
+    sub.add_parser("selfcheck", help="production checks; alerts once per failure (S6)").set_defaults(
+        fn=cmd_selfcheck)
     return p
 
 

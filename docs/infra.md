@@ -175,3 +175,10 @@ provider that does not train on prompts. Without `tectonic` installed the card c
    uv run jobpipe userbot --login
    powershell -ExecutionPolicy Bypass -File ops\worker\install-worker.ps1 -Userbot
    ```
+
+## Self-check and restore test (S6)
+
+* `jp selfcheck` prints every check; the hourly timer alerts once per failure and once on recovery.
+* Dead-man's switch: create a free check on healthchecks.io (period 1 h, grace 2 h), put its ping URL
+  in `settings.yaml: selfcheck.ping_url`. If the VM dies, that service e-mails you.
+* Restore test, e.g. monthly: `jp backup --verify`.

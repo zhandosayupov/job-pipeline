@@ -84,6 +84,23 @@ def _group(items: list) -> list:
     return out
 
 
+def metrics(conn: sqlite3.Connection, since: str) -> str:
+    """S6: one line of funnel movement since the last digest, plus what waits for the owner."""
+    moved = dict(conn.execute(
+        "SELECT to_state, COUNT(*) FROM events WHERE entity = 'application' AND kind = 'transition' AND ts >= ? "
+        "AND to_state IN ('applied', 'replied', 'screening', 'interview', 'offer', 'rejected', 'ghosted') "
+        "GROUP BY to_state", (since,)).fetchall())
+    waiting = conn.execute("SELECT COUNT(*) FROM applications WHERE state IN ('awaiting_approval', "
+                           "'submit_unknown', 'apply_failed')").fetchone()[0]
+    drafts = conn.execute("SELECT COUNT(*) FROM conversations WHERE state = 'draft_ready'").fetchone()[0]
+    names = {"applied": "подано", "replied": "ответили", "screening": "скрининг", "interview": "интервью",
+             "offer": "оффер", "rejected": "отказ", "ghosted": "тишина"}
+    parts = [f"{names[k]} {moved[k]}" for k in names if moved.get(k)]
+    if waiting or drafts:
+        parts.append(f"ждут тебя: заявок {waiting}, ответов {drafts}")
+    return ("Воронка: " + ", ".join(parts)) if parts else ""
+
+
 def build(conn: sqlite3.Connection, clock: Clock, tz: str, max_items: int) -> Digest:
     marks = ", ".join("?" for _ in LIVE_STATES)
     rows = conn.execute(
@@ -111,6 +128,9 @@ def build(conn: sqlite3.Connection, clock: Clock, tz: str, max_items: int) -> Di
         f"Дайджест {day}: {len(items)} новых вакансий после фильтра "
         f"(получено {stats['f']}, новых {stats['n']}, отсеяно {stats['d']})."
     )
+    m = metrics(conn, since)
+    if m:
+        header += "\n" + m
     if unhealthy:
         header += "\nИсточники с проблемами: " + ", ".join(f"{r['source']} ({r['status']})" for r in unhealthy)
     groups = _group(items)

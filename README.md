@@ -19,7 +19,7 @@ plan: [docs/plan.html](docs/plan.html) · parked for later: [docs/TODO.md](docs/
 | S3 | knowledge base, truth gate, CV tailoring (LaTeX), cover letter, approval cards | in review (stacked on S2) |
 | S4 | worker API, form resolution, two-phase submit, laptop worker (Playwright), Greenhouse/Lever/Ashby/hh appliers | in review (stacked on S3) |
 | S5 | Gmail inbox (IMAP), triage, funnel stages, reply drafts with Approve, hh alerts as a source, Telegram userbot | in review (stacked on S4) |
-| S6 | hardening | planned |
+| S6 | selfcheck + dead-man's switch, backup restore test, digest funnel line, earned L2 for replies, provisioning rollback | in review (stacked on S5) |
 
 ## Ground rules (enforced in code)
 

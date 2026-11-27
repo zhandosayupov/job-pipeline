@@ -110,6 +110,18 @@ class InboxCfg(_Model):
     ignore_senders: list[str] = Field(default_factory=list)   # never read, e.g. a noisy newsletter
 
 
+class SelfcheckCfg(_Model):
+    """S6: `jobpipe selfcheck` hourly. Limits are hours since the last finished `jobpipe run <x>`."""
+
+    ping_url: str | None = None          # dead-man's switch (e.g. healthchecks.io), pinged when all ok
+    task_overdue_min: int = 30
+    worker_stale_hours: float = 24       # the laptop sleeps at night; a day without it is worth a word
+    source_stale_hours: float = 30
+    max_age_hours: dict[str, float] = Field(default_factory=lambda: {
+        "queue": 0.5, "collect": 10, "label": 10, "tailor": 10, "inbox": 10, "digest": 26,
+        "retention": 26, "backup": 26})
+
+
 class Settings(_Model):
     timezone: str = "Asia/Almaty"
     telegram: TelegramCfg = TelegramCfg()
@@ -120,6 +132,7 @@ class Settings(_Model):
     label: LabelCfg = LabelCfg()
     http: HttpCfg = HttpCfg()
     inbox: InboxCfg = InboxCfg()
+    selfcheck: SelfcheckCfg = SelfcheckCfg()
     log_level: str = "INFO"
 
     @model_validator(mode="after")
