@@ -39,6 +39,7 @@ class FetchOutcome:
         return "blocked" if self.blocked and not self.errors else "error"
 
     def run_unit(self, unit: str, fn: Callable[[], None]) -> None:
+        start = len(self.postings)
         try:
             fn()
             self.units_ok += 1
@@ -48,6 +49,19 @@ class FetchOutcome:
             self.errors.append(f"{unit}: {e}")
         except Exception as e:  # a parser bug must not stop the other units
             self.errors.append(f"{unit}: {type(e).__name__}: {str(e)[:200]}")
+        for p in self.postings[start:]:     # memory: 15k full descriptions peaked at 439M on the VM
+            p.description = trim_description(p.description)
+
+
+HEAD_CHARS, TAIL_CHARS = 8000, 4000
+
+
+def trim_description(text: str) -> str:
+    """Keep the start and the end of a long description: visa and remote statements often sit in
+    the closing benefits section, so the tail is kept for the signals."""
+    if not text or len(text) <= HEAD_CHARS + TAIL_CHARS:
+        return text
+    return text[:HEAD_CHARS] + "\n…\n" + text[-TAIL_CHARS:]
 
 
 class Source(Protocol):
