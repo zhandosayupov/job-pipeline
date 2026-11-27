@@ -35,8 +35,9 @@ def test_verify_clamps_recomputes_and_rejects_unquoted_evidence(clock):
                    visa_evidence="we sponsor all visas", remote_scope="worldwide", remote_evidence="Remote OK")
     text = "C++ engineer. Remote OK for anyone. Great office."
     out = label.verify(lab, text, None, clock.now())
-    assert out["breakdown"] == {"level": 25, "stack": 0, "legal": 25, "comp": 15, "fresh": 2}
-    assert out["score"] == 67
+    # legal: the sponsorship claim was rejected, the quoted "worldwide" remote is worth at most 22
+    assert out["breakdown"] == {"level": 25, "stack": 0, "legal": 22, "comp": 15, "fresh": 2}
+    assert out["score"] == 64
     assert out["visa"] == "unknown" and out["visa_evidence"] is None and "visa" in out["unverified"]
     assert out["remote_scope"] == "worldwide" and out["remote_evidence"] == "Remote OK"
 
@@ -113,7 +114,7 @@ def test_run_labels_and_routes(env, clock):
     assert (res.labeled, res.shortlisted, res.skipped, res.protected) == (3, 2, 1, 1)
     assert states(conn) == {"t:0": "shortlisted", "t:1": "skipped", "t:2": "shortlisted"}
     stored = json.loads(conn.execute("SELECT data_json FROM jobs WHERE id='t:0'").fetchone()[0])["label"]
-    assert stored["score"] == 25 + 25 + 22 + 2 + 10
+    assert stored["score"] == 25 + 25 + 8 + 2 + 10      # no visa/remote claim: legal capped at "unknown"
 
 
 def test_protected_is_shortlisted_even_with_low_score(env, clock):
@@ -213,3 +214,40 @@ def test_a_quoted_claim_keeps_its_legal_points(clock):
                    remote_scope="worldwide", remote_evidence="fully remote")
     out = label.verify(lab, "C++ engineer. We sponsor visas.", None, clock.now())
     assert out["visa"] == "explicit" and out["breakdown"]["legal"] == 22
+
+
+def test_partial_rejection_caps_legal_at_the_surviving_claim(clock):
+    """S2 review: a fabricated sponsorship quote next to a quoted remote EMEA is worth EMEA's 12."""
+    lab = mk_label("x", legal=25, visa="explicit", visa_evidence="we sponsor visas",
+                   remote_scope="emea", remote_evidence="remote within EMEA")
+    out = label.verify(lab, "C++ engineer, remote within EMEA.", None, clock.now())
+    assert out["visa"] == "unknown" and out["remote_scope"] == "emea" and out["breakdown"]["legal"] == 12
+
+
+def test_unknown_everything_with_high_legal_is_capped(clock):
+    out = label.verify(mk_label("x", legal=25), "C++ engineer.", None, clock.now())
+    assert out["breakdown"]["legal"] == label.LEGAL_UNKNOWN and "unverified" not in out
+
+
+def test_job_the_model_keeps_skipping_is_dropped_after_three_runs(env, clock):
+    conn, cfg, notifier = env
+    seed(conn, clock, n=2)
+    skip_second = FakeRouter(lambda it: None if it["id"] == "j2" or it["title"].endswith("1") else mk_label(it["id"]))
+    for _ in range(2):
+        label.run(conn, clock, cfg, skip_second, notifier)
+    assert states(conn)["t:1"] == "prefiltered"                      # two misses: still retried
+    label.run(conn, clock, cfg, skip_second, notifier)
+    row = conn.execute("SELECT state, drop_rule FROM jobs WHERE id = 't:1'").fetchone()
+    assert tuple(row) == ("dropped", "label_missing")
+
+
+def test_rating_stops_after_the_30_sample(env, clock):
+    from jobpipe.services import cards
+
+    conn, cfg, notifier = env
+    seed(conn, clock, n=31)
+    label.run(conn, clock, cfg, FakeRouter(), notifier)
+    for _ in range(cards.RATING_SAMPLE):
+        _, buttons = cards.next_rating_card(conn)
+        cards.record_rating(conn, clock, int(buttons[0][0][1].split(":")[2]), "up")
+    assert cards.next_rating_card(conn) is None

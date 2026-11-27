@@ -66,6 +66,11 @@ class LabelBatch(BaseModel):
 
 LIMITS = {"level": 25, "stack": 25, "legal": 25, "comp": 15}
 LEGAL_UNKNOWN = 8          # prompts/label/v1.md: "unknown = 8"
+# The rubric's best value per claim (prompts/label/v1.md, "legal"): sponsorship with a named route 25,
+# relocation support 15; remote open to KZ 24, worldwide 22, an aggregator's remote label 18, EMEA 12;
+# an office job with no visa statement 10. "no" (refuses sponsorship) is 0 unless remote says more.
+VISA_CAP = {"explicit": 25, "relocation_only": 15, "no": 0}
+REMOTE_CAP = {"kz": 24, "worldwide": 22, "listed": 18, "emea": 12, "n/a": 10}
 MAX_MISSES = 3             # a job the model leaves out of its answer this many times is dropped
 
 
@@ -113,12 +118,18 @@ def verify(label: JobLabel, text: str, posted_at: str | None, now: datetime) -> 
         if label.remote_scope not in ("unknown", "n/a"):
             out["remote_scope"] = "unknown"
             out["unverified"] = [*out.get("unverified", []), "remote_scope"]
-    # The legal points come from the same claims: with no quoted visa or remote claim left, the
-    # rubric's "unknown" value is the most they can be worth (S2 review: no score from a rejected claim).
-    if out.get("unverified") and out["visa"] == "unknown" and out["remote_scope"] in ("unknown", "n/a"):
-        b["legal"] = min(b["legal"], LEGAL_UNKNOWN)
-        out["score"] = sum(b.values())
+    # The legal points come from the visa and remote claims, so they can be worth at most what the
+    # rubric gives the claims that survived the quote check (S2 review): a rejected sponsorship claim
+    # next to a quoted "remote EMEA" is worth 12, not 25; nothing left is worth the "unknown" 8.
+    b["legal"] = min(b["legal"], legal_cap(out["visa"], out["remote_scope"]))
+    out["score"] = sum(b.values())
     return out
+
+
+def legal_cap(visa: str, remote_scope: str) -> int:
+    """Highest `legal` value prompts/label/v1.md allows for these (verified) values."""
+    caps = [c for c in (VISA_CAP.get(visa), REMOTE_CAP.get(remote_scope)) if c is not None]
+    return max(caps) if caps else LEGAL_UNKNOWN
 
 
 @dataclass
