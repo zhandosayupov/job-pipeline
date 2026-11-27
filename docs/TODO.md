@@ -12,6 +12,14 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
 
 ## Sources not in S1
 
+- **Career sites checked on 2026-11-27 and left out**:
+  * Google: robots.txt disallows `/about/careers/applications/jobs/results`.
+  * careers.indrive.com: vacancy pages came back empty (rendered by JavaScript), so they need the worker.
+  * kolesa.group: no vacancy sitemap.
+  * getmatch and relocate.me search pages are rendered by JavaScript (relocate.me is collected through its jobs sitemap instead).
+  * EPAM: `/api` is disallowed; check its sitemap.
+  * Workday tenants beyond Nvidia: find each company's host, tenant and site.
+
 - **LinkedIn** (discovery only, ADR 0011): `python-jobspy` pulls in pandas, too heavy for the 1 GB VM.
   Options: run it on the laptop worker (S4), or a small own client for the public guest search.
 - **relocate.me**: HTML listing pages (robots.txt allows them; `/api/` is disallowed).
