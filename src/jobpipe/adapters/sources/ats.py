@@ -128,3 +128,38 @@ class Lever:
 
             out.run_unit(c.token, unit)
         return out
+
+
+class Workable:
+    """apply.workable.com public widget API (Hugging Face, Freedom24): the full board, so closures too."""
+
+    name = "workable"
+    kind = "ats"
+    base = "https://apply.workable.com/api/v1/widget/accounts/{token}"
+
+    def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
+        out = FetchOutcome()
+        for c in ctx.companies:
+
+            def unit(c=c):
+                data = http.get_json(self.base.format(token=c.token), {"details": "true"})
+                ids = set()
+                for j in data.get("jobs", []):
+                    locs = j.get("locations") or []
+                    place = ", ".join(x for x in (j.get("city"), j.get("country")) if x) or None
+                    remote = str(j.get("telecommuting")).lower() == "true"
+                    p = Posting(
+                        source=self.name, kind="ats", source_job_id=f"{c.token}:{j['shortcode']}",
+                        company=c.name, title=j.get("title") or "", url=j.get("url") or j.get("shortlink") or "",
+                        description=html_to_text(j.get("description")) or (j.get("title") or ""),
+                        location=place,
+                        country=(locs[0].get("countryCode") if len(locs) == 1 else None) or None,
+                        remote="remote" if remote else None, posted_at=iso_utc(j.get("published_on")),
+                        extra={"department": j.get("department"), "employment": j.get("employment_type")},
+                    )
+                    ids.add(p.id)
+                    out.postings.append(p)
+                out.complete_ids[f"{self.name}:{c.token}"] = ids
+
+            out.run_unit(c.token, unit)
+        return out

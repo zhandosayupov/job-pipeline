@@ -22,6 +22,7 @@ ROUTES = {
     "www.arbeitnow.com": "arbeitnow.json",
     "t.me": "tg_forcpp.html",
     "www.amazon.jobs": "amazon_nl.json",
+    "apply.workable.com": "workable_huggingface.json",
     "job.kaspi.kz": None,                       # sitemap or vacancy page, by path (careers)
     "nvidia.wd5.myworkdayjobs.com": None,       # search or job detail, by path (workday)
 }
@@ -59,6 +60,7 @@ CONTEXTS = {
     "greenhouse": lambda: SourceContext(companies=[company("IMC", "imc")]),
     "ashby": lambda: SourceContext(companies=[company("ClickHouse", "clickhouse")]),
     "lever": lambda: SourceContext(companies=[company("Spotify", "spotify")]),
+    "workable": lambda: SourceContext(companies=[company("Hugging Face", "huggingface")]),
     "amazon": lambda: SourceContext(params={"countries": ["NLD"], "max_pages": 1}),
     "telegram": lambda: SourceContext(params={"channels": ["forcpp"]}),
     "careers": lambda: SourceContext(params={"sites": [{"key": "kaspi", "company": "Kaspi.kz",
