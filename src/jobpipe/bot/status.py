@@ -34,6 +34,7 @@ class StatusSnapshot:
     unknown_effects: list[str] = field(default_factory=list)
     needs_human: dict[str, int] = field(default_factory=dict)
     sources: dict[str, str] = field(default_factory=dict)  # latest status per source
+    workers: list[tuple[str, bool, str]] = field(default_factory=list)  # (id, online, last_seen)
     notes: list[str] = field(default_factory=list)
 
 
@@ -54,6 +55,12 @@ def needs_human_counts(conn: sqlite3.Connection) -> dict[str, int]:
         if n:
             out[entity] = n
     return out
+
+
+def _workers(conn: sqlite3.Connection, clock: Clock) -> list[tuple[str, bool, str]]:
+    from ..services.apply import workers_status
+
+    return workers_status(conn, clock)
 
 
 def latest_source_status(conn: sqlite3.Connection) -> dict[str, str]:
@@ -98,6 +105,7 @@ def gather(conn: sqlite3.Connection, clock: Clock, queue: Queue, tz: str, db_pat
         unknown_effects=control.SideEffects(conn, clock).unknown(),
         needs_human=needs_human_counts(conn),
         sources=latest_source_status(conn),
+        workers=_workers(conn, clock),
     )
 
 
@@ -143,6 +151,8 @@ def render(s: StatusSnapshot) -> str:
         lines.append("LLM сегодня: вызовов не было")
     for name, state in sorted(s.providers.items()):
         lines.append(f"  {name}: {state}")
+    for wid, online, seen in s.workers:
+        lines.append(f"Воркер {wid}: {'online' if online else 'офлайн'} (последний сигнал {_local(seen, s.tz)})")
     if s.sources:
         bad = {k: v for k, v in s.sources.items() if v not in ("ok", "skipped")}
         ok = len(s.sources) - len(bad)

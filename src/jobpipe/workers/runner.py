@@ -99,7 +99,8 @@ class Runner:
                 if self._stop or control.is_paused(self.conn):
                     final = "stopped"
                     break
-                task = self.queue.lease(owner, types)
+                # Only types this process can run: worker tasks (apply.*) stay for the laptop.
+                task = self.queue.lease(owner, types or list(self.handlers))
                 if task is None:
                     break
                 self._run_one(task, ctx, summary)

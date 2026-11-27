@@ -1,0 +1,28 @@
+# Selectors for the browser worker (S4). Lives next to the worker on the laptop
+# (%USERPROFILE%\.jobpipe-worker\appliers.yaml). When a site changes, fix the selector here:
+# a missing selector fails the task with a screenshot, it is never retried blindly.
+# These are starting points written from public form markup; verify each with a dry run.
+
+platforms:
+  greenhouse:
+    url_suffix: ""                        # the hosted job page contains the form
+    submit: "#submit_app, button[type=submit]"
+    confirm_patterns: ["Thank you for applying", "Application submitted", "We have received your application"]
+
+  lever:
+    url_suffix: "/apply"
+    submit: "#btn-submit, button[type=submit]"
+    confirm_patterns: ["Application submitted", "Thanks for applying"]
+
+  ashby:
+    url_suffix: "/application"
+    submit: "button[type=submit]"
+    confirm_patterns: ["Thanks for applying", "Your application was successfully submitted"]
+
+  hh:
+    url_suffix: ""
+    # The response is a popup opened from the vacancy page (data-qa attributes are hh's own test hooks).
+    reveal_clicks: ["[data-qa=vacancy-response-link-top]"]
+    submit: "[data-qa=vacancy-response-submit-popup]"
+    confirm_selectors: ["[data-qa=vacancy-response-link-view-topic]", "[data-qa=vacancy-response-success-standard-notification]"]
+    confirm_patterns: ["Резюме доставлено", "Отклик отправлен", "Вы откликнулись"]

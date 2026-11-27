@@ -136,3 +136,25 @@ jp run tailor --limit 1                                # one draft, card with CV
 Tailoring sends your CV facts to the LLM, pseudonymized. With only the free Gemini key (which may
 train on prompts) set `personal_on_training_providers: true` in `llm.yaml` to allow it, or add a
 provider that does not train on prompts. Without `tectonic` installed the card carries the `.tex`.
+
+## Browser worker on the laptop (S4)
+
+1. **Tailscale** on the VM and the laptop (same account). Note the VM's Tailscale IP (`tailscale ip -4`).
+2. **On the VM**: add a token to `/etc/jobpipe/secrets.env` and listen on the Tailscale address:
+   ```bash
+   python3 -c "import secrets; print('WORKER_TOKEN=' + secrets.token_urlsafe(32))" | sudo -u jobpipe tee -a /etc/jobpipe/secrets.env
+   sudo -u jobpipe nano /var/lib/jobpipe/config/settings.yaml   # http.host: <VM tailscale IP>
+   sudo systemctl restart jobpipe-bot
+   ```
+   Never open port 8080 in the GCP firewall: the API is for the tailnet only.
+3. **On the laptop** (PowerShell, in the repository folder):
+   ```powershell
+   uv sync --group worker
+   uv run playwright install chromium
+   mkdir $env:USERPROFILE\.jobpipe-worker
+   notepad $env:USERPROFILE\.jobpipe-worker\worker.env   # JOBPIPE_CORE_URL=http://<VM tailscale IP>:8080 and WORKER_TOKEN=...
+   uv run jobpipe worker --login hh --login-url https://hh.kz/account/login   # log in once, press Enter
+   powershell -ExecutionPolicy Bypass -File ops\worker\install-worker.ps1
+   ```
+4. **Dry runs first**: every platform starts with DRY_RUN on. Approve a CV card, wait for `jp run apply`
+   (or run it), check the dry-run report and screenshot. After 10 correct dry runs: `/dryrun hh off`.

@@ -57,6 +57,15 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
   as claims, or compare against the job's tech list (S3 review).
 - **Re-label with the full text** before tailoring (labels use a 700-character excerpt).
 
+## Applying (after S4)
+
+- **Mini App** for the approval queue (filter by `needs_human`, approve in a batch).
+- **Answering a question from Telegram**: reply to a card with the answer and save it to
+  `answers.yaml`, instead of editing the file.
+- **LinkedIn Easy-Apply-only** postings: notification only (ADR 0011); **Workday**: not attempted.
+- **Ashby comboboxes** and other custom widgets may need platform-specific fill code.
+- **Live selector check**: a weekly dry run per platform that alerts when a selector stops matching.
+
 ## Production
 
 - **Production checks that alert when something breaks.** Unit tests only cover the code; on the

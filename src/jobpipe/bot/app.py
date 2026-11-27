@@ -200,6 +200,12 @@ class BotService:
         with self._conn() as conn:
             return handle_app_action(conn, self.clock, action, rowid)
 
+    def submit_decision(self, action: str, rowid: int) -> str:
+        from ..services.apply import owner_decision
+
+        with self._conn() as conn:
+            return owner_decision(conn, self.clock, Queue(conn, self.clock, self.cfg.settings.queue), action, rowid)
+
     def rate_next(self):
         from ..services.cards import next_rating_card
 
@@ -302,6 +308,15 @@ def build_dispatcher(service: BotService, owner_id: int) -> Dispatcher:
             await cb.message.edit_reply_markup(reply_markup=None)
             await cb.message.answer(result)
 
+    @dp.callback_query(F.data.startswith("s:"))
+    async def _submit_button(cb: CallbackQuery) -> None:
+        _, action, rowid = cb.data.split(":", 2)
+        result = await asyncio.to_thread(service.submit_decision, action, int(rowid))
+        await cb.answer(result[:190])
+        if cb.message is not None:
+            await cb.message.edit_reply_markup(reply_markup=None)
+            await cb.message.answer(result)
+
     @dp.callback_query(F.data.startswith("r:"))
     async def _rate_button(cb: CallbackQuery) -> None:
         _, vote, rowid = cb.data.split(":", 2)
@@ -323,7 +338,7 @@ def _keyboard(buttons) -> InlineKeyboardMarkup:
                                                  for row in buttons])
 
 
-def build_web_app(service: BotService) -> web.Application:
+def build_web_app(service: BotService, worker_api=None) -> web.Application:
     async def healthz(request: web.Request) -> web.Response:
         try:
             body = await asyncio.to_thread(service.health)
@@ -331,9 +346,23 @@ def build_web_app(service: BotService) -> web.Application:
             body = {"ok": False, "error": type(e).__name__}
         return web.json_response(body, status=200 if body.get("ok") else 503, dumps=json.dumps)
 
-    app = web.Application()
+    app = web.Application(client_max_size=20 * 1024 * 1024)  # screenshots
     app.router.add_get("/healthz", healthz)
+    if worker_api is not None and worker_api._token():
+        app.add_routes(worker_api.routes())
     return app
+
+
+def _kb_loader(cfg: AppConfig):
+    def load():
+        from ..services import kb as kbmod
+
+        try:
+            return kbmod.load(cfg.paths.home / "kb")
+        except Exception:
+            log.exception("knowledge base could not be loaded")
+            return None
+    return load
 
 
 async def run_bot(cfg: AppConfig) -> None:
@@ -348,7 +377,11 @@ async def run_bot(cfg: AppConfig) -> None:
     bot = Bot(token)
     dp = build_dispatcher(service, owner_id)
 
-    runner = web.AppRunner(build_web_app(service))
+    from ..adapters.notifier.telegram import TelegramNotifier
+    from ..api.worker import WorkerAPI
+
+    worker_api = WorkerAPI(cfg, notifier=TelegramNotifier(token, owner_id), kb_loader=_kb_loader(cfg))
+    runner = web.AppRunner(build_web_app(service, worker_api))
     await runner.setup()
     site = web.TCPSite(runner, cfg.settings.http.host, cfg.settings.http.port)
     await site.start()

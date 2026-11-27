@@ -152,6 +152,10 @@ class PolicyCfg(_Model):
     work_authorized_countries: list[str] = Field(default_factory=lambda: ["KZ", "AM", "KG", "BY", "RU"])
     # Messages (not applications) may be raised to L2 only after this many clean approvals.
     l2_min_clean_approvals: int = 20
+    # S4: an application goes to the browser only after the owner approved its CV and letter (S3 card).
+    require_cv_approval: bool = True
+    # Platforms jobpipe may apply on; others get a "apply manually" note with the link.
+    apply_platforms: list[str] = Field(default_factory=lambda: ["greenhouse", "lever", "ashby", "hh"])
 
 
 # --- llm.yaml ------------------------------------------------------------------------
@@ -419,7 +423,8 @@ def load_config(home: Path | None = None, env: dict[str, str] | None = None) -> 
     if paths.secrets_file.exists():
         values.update(parse_env_file(paths.secrets_file.read_text(encoding="utf-8")))
     environ = os.environ if env is None else env
-    wanted = {settings.telegram.token_env, *(p.key_env for p in llm.providers.values())}
+    wanted = {settings.telegram.token_env, "WORKER_TOKEN", "GMAIL_APP_PASSWORD",
+              *(p.key_env for p in llm.providers.values())}
     for key in wanted:
         if environ.get(key):
             values[key] = environ[key]

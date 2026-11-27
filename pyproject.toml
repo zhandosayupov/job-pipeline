@@ -25,6 +25,10 @@ dev = [
   "pytest>=8",
   "ruff>=0.6",
 ]
+# The laptop browser worker only (S4): uv sync --group worker && uv run playwright install chromium
+worker = [
+  "playwright>=1.48",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/jobpipe"]

@@ -111,6 +111,13 @@ def cmd_run(cfg: AppConfig, args) -> int:
         return 0
     if args.what == "collect":
         return _run_collect(cfg, conn, args)
+    if args.what == "apply":
+        from .services import apply
+
+        q = Queue(conn, SystemClock(), cfg.settings.queue)
+        ids = apply.schedule(conn, SystemClock(), cfg, q, _notifier(cfg), limit=args.limit or 20)
+        print(f"scheduled {len(ids)} application(s) for the worker" + (": " + ", ".join(ids) if ids else ""))
+        return 0
     if args.what == "tailor":
         from .adapters.llm.openai_compat import OpenAICompatTransport
         from .services import kb as kbmod
@@ -188,6 +195,38 @@ def _run_collect(cfg: AppConfig, conn, args) -> int:
         rows = conn.execute("SELECT drop_rule, COUNT(*) n FROM jobs WHERE drop_rule IS NOT NULL GROUP BY 1").fetchall()
         print("dropped by rule: " + ", ".join(f"{r['drop_rule']} {r['n']}" for r in rows))
         print("dry run: the real database was not changed")
+    return 0
+
+
+def cmd_worker(cfg: AppConfig, args) -> int:
+    """Run the browser worker on the laptop (needs: uv sync --group worker; playwright install chromium)."""
+    import os
+
+    from .config.settings import parse_env_file
+    from .worker.agent import Core, Worker, WorkerCfg
+    from .worker.appliers import load_appliers
+    from .worker.page import PlaywrightPage
+
+    wdir = Path(args.dir).expanduser()
+    env = parse_env_file((wdir / "worker.env").read_text(encoding="utf-8")) if (wdir / "worker.env").exists() else {}
+    core_url = args.core or env.get("JOBPIPE_CORE_URL") or os.environ.get("JOBPIPE_CORE_URL")
+    token = env.get("WORKER_TOKEN") or os.environ.get("WORKER_TOKEN")
+    if not core_url or not token:
+        print(f"set JOBPIPE_CORE_URL and WORKER_TOKEN in {wdir / 'worker.env'}", file=sys.stderr)
+        return 1
+    wcfg = WorkerCfg(core_url=core_url, token=token, worker_id=args.id, profiles_dir=wdir / "profiles",
+                     headless=not args.headed, min_idle_s=args.min_idle, require_ac=not args.allow_battery)
+    appliers = load_appliers(wdir / "appliers.yaml" if (wdir / "appliers.yaml").exists()
+                             else REPO_ROOT / "config.example" / "appliers.yaml").platforms
+    worker = Worker(wcfg, appliers, Core(wcfg),
+                    lambda platform: PlaywrightPage(wcfg.profiles_dir / platform, headless=wcfg.headless))
+    if args.login:
+        page = PlaywrightPage(wcfg.profiles_dir / args.login, headless=False)
+        page.goto(args.login_url or "about:blank")
+        input(f"Log in to {args.login} in the opened window, then press Enter here to save the profile...")
+        page.close()
+        return 0
+    worker.run_forever()
     return 0
 
 
@@ -346,7 +385,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("bot", help="run the resident Telegram bot + /healthz").set_defaults(fn=cmd_bot)
 
     run = sub.add_parser("run", help="oneshot job, started by a timer")
-    run.add_argument("what", choices=["queue", "retention", "collect", "label", "tailor", "inbox", "digest"])
+    run.add_argument("what", choices=["queue", "retention", "collect", "label", "tailor", "apply", "inbox", "digest"])
     run.add_argument("--max-seconds", type=float, default=None)
     run.add_argument("--types", help="comma-separated task types to take")
     run.add_argument("--sources", help="collect: comma-separated source names (also runs disabled ones)")
@@ -354,6 +393,17 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--dry-run", action="store_true",
                      help="retention/collect: work on a copy, change nothing; digest: print instead of sending")
     run.set_defaults(fn=cmd_run)
+
+    wk = sub.add_parser("worker", help="browser worker for the laptop (S4)")
+    wk.add_argument("--dir", default="~/.jobpipe-worker", help="worker.env, appliers.yaml, profiles/")
+    wk.add_argument("--core", help="VM API URL, e.g. http://100.x.y.z:8080 (default: worker.env)")
+    wk.add_argument("--id", default="laptop")
+    wk.add_argument("--headed", action="store_true", help="show the browser window")
+    wk.add_argument("--min-idle", type=float, default=300, help="seconds without keyboard/mouse input")
+    wk.add_argument("--allow-battery", action="store_true")
+    wk.add_argument("--login", metavar="PLATFORM", help="open a visible browser to log in once (e.g. hh)")
+    wk.add_argument("--login-url", help="page to open for --login, e.g. https://hh.kz/account/login")
+    wk.set_defaults(fn=cmd_worker)
 
     kbp = sub.add_parser("kb", help="knowledge base tools")
     kbp.add_argument("action", choices=["check"])
