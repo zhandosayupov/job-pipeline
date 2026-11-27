@@ -713,6 +713,7 @@ def remind(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, notifier: Not
                     # the 24h reminder is pointless once the 1h one is due
                     if tag == "24h" and left <= REMINDERS[1][0]:
                         iv["reminded"].append(tag)
+                        changed = True
                         continue
                     local = start.astimezone(ZoneInfo(cfg.settings.timezone))
                     lines = [f"⏰ Интервью {word}: {local:%a %d.%m %H:%M} (Алматы) — {iv['summary']}"]
@@ -730,8 +731,10 @@ def remind(conn: sqlite3.Connection, clock: Clock, cfg: AppConfig, notifier: Not
                     # at most once, also when the inbox run and the hourly selfcheck overlap (S7 review)
                     key = f"remind:{conv['id']}:{iv['start']}:{tag}"
                     se = control.SideEffects(conn, clock)
-                    if control.is_paused(conn) or not se.plan(key, "reminder"):
-                        iv["reminded"].append(tag)
+                    if control.is_paused(conn):
+                        continue                 # not sent and not marked: it goes out after /resume (S7 review)
+                    if not se.plan(key, "reminder"):
+                        iv["reminded"].append(tag)   # another run already sent it
                         changed = True
                         continue
                     ok = notifier.send("\n".join(lines))
