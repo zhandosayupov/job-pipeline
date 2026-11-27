@@ -74,6 +74,12 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
 - **WhatsApp Web reader** on the laptop (read-only, no auto-send); ToS/ban risk, so opt-in only.
 - **Save a filled placeholder to answers.yaml** (one tap: reuse the answer next time).
 
+## Performance (seen on the VM, 2026-11-27)
+
+- **Greenhouse memory**: a run over 109 boards peaks at ~336 MB RSS (systemd reports 450M with
+  page cache). Most of it is one big board's JSON with `content=true`. Option: list jobs without
+  content and fetch descriptions only for postings that pass the title rules and are new.
+
 ## Production
 
 - ~~Production checks~~: done in S6 (`jobpipe selfcheck`, ADR 0024). Still open: a daily LLM ping per
