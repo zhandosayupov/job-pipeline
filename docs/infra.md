@@ -120,3 +120,19 @@ Bot: `/shortlist`, `/funnel`, `/rate` (rate 30 labels: the S2 done-condition is 
   clone). It stops the units, swaps in a fresh root-owned clone, syncs, and starts them again.
 * Backups: `/var/lib/jobpipe/data/backups/`, 7 kept. Off-site upload (age + GCS) is configured with
   `backup.upload_cmd` once the bucket exists.
+
+## Knowledge base and tailoring (S3)
+
+The knowledge base is yours alone and lives in `/var/lib/jobpipe/kb/`. Use `config.example/kb/` as
+the format reference (it describes a made-up person: never copy it as is):
+
+```bash
+sudo -u jobpipe mkdir -p /var/lib/jobpipe/kb
+sudo -u jobpipe nano /var/lib/jobpipe/kb/profile.yaml   # then facts.yaml, answers.yaml
+jp kb check                                            # must print no "!" lines
+jp run tailor --limit 1                                # one draft, card with CV + letter
+```
+
+Tailoring sends your CV facts to the LLM, pseudonymized. With only the free Gemini key (which may
+train on prompts) set `personal_on_training_providers: true` in `llm.yaml` to allow it, or add a
+provider that does not train on prompts. Without `tectonic` installed the card carries the `.tex`.

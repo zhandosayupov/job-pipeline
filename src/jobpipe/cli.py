@@ -111,6 +111,24 @@ def cmd_run(cfg: AppConfig, args) -> int:
         return 0
     if args.what == "collect":
         return _run_collect(cfg, conn, args)
+    if args.what == "tailor":
+        from .adapters.llm.openai_compat import OpenAICompatTransport
+        from .services import kb as kbmod
+        from .services import tailor
+        from .services.llm_router import Router
+        from .services.prompts import PromptStore
+
+        kb = kbmod.load(cfg.paths.home / "kb")
+        llm = cfg.llm.model_copy(update={"pii_values": {**cfg.llm.pii_values, **kb.pii_values()}})
+        router = Router(conn, SystemClock(), llm, cfg.secrets, OpenAICompatTransport(),
+                        PromptStore(cfg.paths.prompts_dir))
+        results = tailor.run(conn, SystemClock(), cfg, kb, router, _notifier(cfg), limit=args.limit or 10)
+        for r in results:
+            print(f"{r.app_id}: {'ready' if r.ok else 'BLOCKED ' + '; '.join(r.blocked)} "
+                  f"{' '.join(f'[{k}]' for k in r.artifacts)} {'; '.join(r.notes)}")
+        if not results:
+            print("no drafts to tailor")
+        return 0
     if args.what == "label":
         from .services import cards, label
 
@@ -171,6 +189,35 @@ def _run_collect(cfg: AppConfig, conn, args) -> int:
         print("dropped by rule: " + ", ".join(f"{r['drop_rule']} {r['n']}" for r in rows))
         print("dry run: the real database was not changed")
     return 0
+
+
+def cmd_kb(cfg: AppConfig, args) -> int:
+    """`kb check`: validate the knowledge base and run the truth gate over its own wordings."""
+    from .services import kb as kbmod
+    from .services.truth import TruthGate
+
+    kb_dir = Path(args.dir) if args.dir else cfg.paths.home / "kb"
+    try:
+        kb = kbmod.load(kb_dir)
+    except Exception as e:
+        print(f"knowledge base in {kb_dir} is invalid: {e}", file=sys.stderr)
+        return 1
+    gate = TruthGate(kb)
+    problems = []
+    for f in kb.facts:
+        for w in f.wordings():
+            rep = gate.check(w)
+            problems += [f"{f.id}: {c.kind} «{c.text}» not backed (add it to the fact's tech or wording)"
+                         for c in rep.unmatched]
+    unbacked_skills = [s for items in kb.profile.skills.values() for s in items
+                       if s.lower() not in {t.lower() for f in kb.facts for t in f.tech}]
+    print(f"{kb_dir}: {len(kb.roles)} roles, {len(kb.facts)} facts, {len(kb.answers)} answers, "
+          f"{len(kb.technologies())} technologies")
+    for p in problems:
+        print("  ! " + p)
+    if unbacked_skills:
+        print("  ? skills not shown by any fact (allowed, but a reviewer may ask): " + ", ".join(unbacked_skills))
+    return 1 if problems else 0
 
 
 def cmd_jobs(cfg: AppConfig, args) -> int:
@@ -307,6 +354,11 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--dry-run", action="store_true",
                      help="retention/collect: work on a copy, change nothing; digest: print instead of sending")
     run.set_defaults(fn=cmd_run)
+
+    kbp = sub.add_parser("kb", help="knowledge base tools")
+    kbp.add_argument("action", choices=["check"])
+    kbp.add_argument("--dir", help="kb directory (default: $JOBPIPE_HOME/kb)")
+    kbp.set_defaults(fn=cmd_kb)
 
     jobs = sub.add_parser("jobs", help="inspect collected jobs")
     jobs.add_argument("action", choices=["list", "dropped"])

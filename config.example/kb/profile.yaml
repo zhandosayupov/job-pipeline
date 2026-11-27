@@ -1,0 +1,16 @@
+# EXAMPLE knowledge base for a made-up person ("Alex Example"). Replace every value in your private
+# copy at $JOBPIPE_HOME/kb/. Nothing here describes a real person.
+name: Alex Example
+headline: C++ / backend engineer
+email: alex@example.com
+phone: "+0 000 000 0000"
+location: Almaty, Kazakhstan
+links:
+  github: https://github.com/alex-example
+citizenship: Kazakhstan
+languages: [English (C1), Russian (native)]
+education:
+  - "B.Sc. Computer Science, Example State University, 2019-2023"
+skills:
+  Languages: [C++, Python, Go, SQL]
+  Systems: [Linux, Kubernetes, PostgreSQL, ClickHouse]

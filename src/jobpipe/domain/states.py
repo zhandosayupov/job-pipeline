@@ -39,7 +39,7 @@ APPLICATION = _table(
     {
         "draft": {"tailoring"},
         "tailoring": {"ready", "draft"},
-        "ready": {"filling"},
+        "ready": {"filling", "tailoring"},  # tailoring: the owner asked to redo the CV/letter
         # filling -> submitting is auto-apply (L2, ADR 0016); -> awaiting_approval is the L1 path.
         "filling": {"submitting", "awaiting_approval", "apply_failed"},
         "awaiting_approval": {"submitting", "tailoring"},

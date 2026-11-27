@@ -1,0 +1,14 @@
+# EXAMPLE answers to recurring form questions, used verbatim (ADR 0016). Salary is not here on
+# purpose: policy.yaml sends compensation questions to the owner.
+answers:
+  - topic: notice_period
+    question_patterns: ['notice period', 'when can you start', 'start date', 'availability']
+    answer: Two weeks after signing the offer.
+    answer_ru: Через две недели после подписания оффера.
+  - topic: relocation
+    question_patterns: ['willing to relocate', 'open to relocation', 'relocat']
+    answer: Yes, I am open to relocation.
+    answer_ru: Да, готов к переезду.
+  - topic: english
+    question_patterns: ['english level', 'english proficiency']
+    answer: C1, working proficiency.

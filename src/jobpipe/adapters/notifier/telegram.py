@@ -59,12 +59,38 @@ class TelegramNotifier:
         log.error("telegram send failed", extra={"data": {"error": err}})
         return False
 
+    def send_file(self, path: str, caption: str = "") -> bool:
+        """Send a document (CV PDF/TeX, screenshot). One attempt plus one retry on 5xx/timeouts."""
+        url = self._url.rsplit("/", 1)[0] + "/sendDocument"
+        for attempt in range(2):
+            try:
+                with open(path, "rb") as fh:
+                    resp = self.client.post(url, data={"chat_id": str(self.chat_id), "caption": caption[:1000]},
+                                            files={"document": (path.replace("\\", "/").rsplit("/", 1)[-1], fh)},
+                                            timeout=60)
+            except (httpx.HTTPError, OSError) as e:
+                err = type(e).__name__
+            else:
+                if resp.status_code == 200:
+                    return True
+                err = f"HTTP {resp.status_code}"
+                if resp.status_code < 500:
+                    break
+            if attempt == 0:
+                self.sleep(3)
+        log.error("telegram file send failed", extra={"data": {"error": err}})
+        return False
+
 
 class LogNotifier:
     """Fallback when Telegram is not configured: write the message to the log."""
 
     def send(self, text: str, *, silent: bool = False, buttons: Buttons | None = None) -> bool:
         log.warning("notification (telegram not configured)", extra={"data": {"text": text[:500]}})
+        return False
+
+    def send_file(self, path: str, caption: str = "") -> bool:
+        log.warning("file not sent (telegram not configured)", extra={"data": {"path": path}})
         return False
 
 
@@ -74,8 +100,13 @@ class RecordingNotifier:
     def __init__(self) -> None:
         self.messages: list[str] = []
         self.buttons: list[Buttons | None] = []
+        self.files: list[tuple[str, str]] = []
 
     def send(self, text: str, *, silent: bool = False, buttons: Buttons | None = None) -> bool:
         self.messages.append(text)
         self.buttons.append(buttons)
+        return True
+
+    def send_file(self, path: str, caption: str = "") -> bool:
+        self.files.append((path, caption))
         return True
