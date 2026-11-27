@@ -45,7 +45,7 @@ def check(out: Extracted, cv: str) -> ExtractResult:
             res.roles.append(r)
             role_ids.add(r.id)
         else:
-            res.dropped.append(f"role {r.id}: employer «{r.employer}» not in the CV")
+            res.dropped.append(f"role {r.id}: its employer is not in the CV")   # no employer name in the log
     seen = set()
     for f in out.facts:
         q = _norm(f.quote)
