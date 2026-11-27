@@ -266,3 +266,17 @@ def test_kb_check_cli(capsys):
 
     assert main(["kb", "check", "--dir", str(KB_DIR)]) == 0
     assert "6 facts" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("sentence,ok", [
+    ("I have never doubted my Rust expertise.", False),          # S3 review: negation elsewhere
+    ("I built low-latency systems in Rust, not Python.", False),
+    ("I have not used Rust in production yet.", True),            # honest gap
+    ("I have no production experience with Rust.", True),
+    ("Я не работал с Rust, но быстро учусь.", True),
+])
+def test_gap_exemption_only_when_the_negation_is_about_that_technology(kb, sentence, ok):
+    from jobpipe.services.truth import TruthGate
+
+    rust = [c for c in TruthGate(kb).check(sentence).claims if c.kind == "tech" and c.text == "Rust"]
+    assert rust and rust[0].ok is ok
