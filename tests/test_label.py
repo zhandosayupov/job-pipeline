@@ -41,6 +41,21 @@ def test_verify_clamps_recomputes_and_rejects_unquoted_evidence(clock):
     assert out["remote_scope"] == "worldwide" and out["remote_evidence"] == "Remote OK"
 
 
+@pytest.mark.parametrize("visa,remote", [("relocation_only", "emea"), ("no", "listed")])
+def test_every_unquoted_visa_or_remote_claim_becomes_unknown(clock, visa, remote):
+    """Review of S2: weaker claims (relocation_only, emea, listed) need a real quote too."""
+    lab = mk_label("x", visa=visa, visa_evidence="relocation package offered",
+                   remote_scope=remote, remote_evidence="remote within EMEA")
+    out = label.verify(lab, "C++ engineer in Amsterdam.", None, clock.now())
+    assert out["visa"] == "unknown" and out["remote_scope"] == "unknown"
+    assert set(out["unverified"]) == {"visa", "remote_scope"}
+
+
+def test_office_only_and_unknown_are_left_alone(clock):
+    out = label.verify(mk_label("x", remote_scope="n/a"), "C++ engineer, office.", None, clock.now())
+    assert out["remote_scope"] == "n/a" and "unverified" not in out
+
+
 def test_evidence_matching_is_whitespace_and_case_tolerant():
     assert label.evidence_ok("Visa   SPONSORSHIP available", "We have visa sponsorship available. Apply")
     assert not label.evidence_ok("visa sponsorship available", "We have no sponsorship")
