@@ -18,8 +18,14 @@ uneven, and the owner must never get the same vacancy twice.
 * **HTTP** (`adapters/http.py`): one User-Agent naming the project, robots.txt per RFC 9309 (4xx means
   no rules, 5xx or unreachable means disallow all), at most one request per second per host, two
   retries on 5xx/timeouts. 401/403/429, a captcha page or a robots refusal raise `Blocked`: the source
-  stops for that run and the owner is told after `health_alert_after` consecutive failures (and once
-  more when it recovers). Nothing is worked around (ADR 0012).
+  stops for that run and the owner is told **at once** (the first blocked run; CLAUDE.md). Plain errors
+  alert after `health_alert_after` consecutive failures; both alert once more on recovery. Nothing is
+  worked around (ADR 0012).
+* **Re-seen postings** only refresh `last_seen`: the description stored at first sight is kept (the
+  label and dedupe fingerprint stay stable), and a closed job that reappears stays closed (its id is
+  known; a re-posted vacancy usually gets a new id and comes in as new).
+* **Crash safety**: a job left in `discovered` by a crash between create and prefilter is finished by
+  `sweep_discovered()` at the start of the next run.
 * **Normalisation**: every source returns `Posting`; unknown fields stay `None`. Countries become
   ISO2 only when the source names one. Postings keep up to 8,000 characters of plain description.
 * **Prefilter** (deterministic, `filters.yaml`, EN + RU): `title_not_eng`, `title_excluded` (with
