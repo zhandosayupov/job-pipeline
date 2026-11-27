@@ -209,7 +209,8 @@ def _run(cfg: AppConfig, conn, args) -> int:
         notifier = _notifier(cfg)
         res = label.run(conn, SystemClock(), cfg, _router_factory(cfg, conn)(), notifier,
                         limit=args.limit)
-        sent = cards.send_cards(conn, notifier, res.shortlisted_ids, cfg.settings.label.alert_threshold)
+        sent = cards.send_cards(conn, notifier, res.shortlisted_ids, cfg.settings.label.alert_threshold,
+                                cfg.settings.label.max_cards_per_run)
         print(f"labeled {res.labeled}, shortlisted {res.shortlisted} (protected {res.protected}), "
               f"skipped {res.skipped}, failed batches {res.failed_batches}, cards sent {sent}"
               + (", daily budget reached" if res.budget_stop else ""))

@@ -57,9 +57,12 @@ def card_buttons(rowid: int, is_protected: bool) -> Buttons:
     return [[first], row2]
 
 
-def send_cards(conn: sqlite3.Connection, notifier: Notifier, job_ids: list[str], min_score: int) -> int:
-    """Instant cards for protected jobs and those scoring >= min_score; each job at most once."""
-    sent = 0
+def send_cards(conn: sqlite3.Connection, notifier: Notifier, job_ids: list[str], min_score: int,
+               max_cards: int = 10) -> int:
+    """Instant cards for protected jobs and those scoring >= min_score; each job at most once, and at
+    most `max_cards` per run, best first (live: 210 cards in one run). The rest stay on the shortlist:
+    /shortlist and the digest show them."""
+    candidates = []
     for jid in job_ids:
         row = conn.execute("SELECT rowid, * FROM jobs WHERE id = ?", (jid,)).fetchone()
         if row is None or row["state"] != "shortlisted":
@@ -68,10 +71,17 @@ def send_cards(conn: sqlite3.Connection, notifier: Notifier, job_ids: list[str],
         label = data.get("label") or {}
         if data.get("card_sent") or not (row["protected"] or (label.get("score") or 0) >= min_score):
             continue
+        candidates.append(((label.get("score") or 0), bool(row["protected"]), jid, row, data, label))
+    candidates.sort(key=lambda c: (c[0], c[1]), reverse=True)
+    sent = 0
+    for _score, _prot, jid, row, data, label in candidates[:max_cards]:
         if notifier.send(card_text(row, label), buttons=card_buttons(row["rowid"], bool(row["protected"]))):
             data["card_sent"] = True
             conn.execute("UPDATE jobs SET data_json = ? WHERE id = ?", (json.dumps(data, ensure_ascii=False), jid))
             sent += 1
+    if len(candidates) > max_cards:
+        notifier.send(f"…и ещё {len(candidates) - max_cards} вакансий в шортлисте без карточки: /shortlist",
+                      silent=True)
     return sent
 
 
