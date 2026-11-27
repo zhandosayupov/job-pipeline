@@ -88,6 +88,7 @@ class Applier:
         """Click submit. Returns True if a confirmation is seen afterwards."""
         if not self.page.exists(self.cfg.submit):
             raise ApplyError(f"submit selector not found: {self.cfg.submit}")
+        self.clicked = True                     # from here on the outcome is unknown, whatever raises
         self.page.click(self.cfg.submit)
         self.page.wait(self.cfg.settle_s * 2)
         return self.confirmed()
