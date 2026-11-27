@@ -128,7 +128,7 @@ class CareerSites:
     kind = "ats"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         for site in ctx.params.get("sites", []):
             key = site["key"]
 
@@ -172,7 +172,7 @@ class Workday:
     kind = "ats"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         for t in ctx.params.get("tenants", []):
             base = f"https://{t['host']}/wday/cxs/{t['tenant']}/{t['site']}"
             for q in t.get("queries", ctx.params.get("queries", ["c++"])):

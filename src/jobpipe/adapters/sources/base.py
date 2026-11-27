@@ -18,6 +18,9 @@ class SourceContext:
     params: dict[str, Any] = field(default_factory=dict)
     companies: list[Any] = field(default_factory=list)  # CompanyCfg rows for this ATS
     cursors: dict[str, str] = field(default_factory=dict)  # read and updated by the source
+    # Called with each unit's postings as soon as the unit is done (the collector stores them), so a
+    # source with 100+ boards never holds every posting in memory at once (439M peak on the VM).
+    sink: Callable[[list[Posting]], None] | None = None
 
 
 @dataclass
@@ -28,6 +31,12 @@ class FetchOutcome:
     errors: list[str] = field(default_factory=list)
     # unit -> every job id currently on that board; only for complete boards (closures)
     complete_ids: dict[str, set[str]] = field(default_factory=dict)
+    sink: Callable[[list[Posting]], None] | None = None
+    streamed: int = 0                     # postings already handed to the sink
+
+    @property
+    def fetched(self) -> int:
+        return self.streamed + len(self.postings)
 
     @property
     def status(self) -> str:
@@ -49,8 +58,13 @@ class FetchOutcome:
             self.errors.append(f"{unit}: {e}")
         except Exception as e:  # a parser bug must not stop the other units
             self.errors.append(f"{unit}: {type(e).__name__}: {str(e)[:200]}")
-        for p in self.postings[start:]:     # memory: 15k full descriptions peaked at 439M on the VM
+        for p in self.postings[start:]:
             p.description = trim_description(p.description)
+        if self.sink is not None and len(self.postings) > start:
+            batch = self.postings[start:]
+            del self.postings[start:]
+            self.streamed += len(batch)
+            self.sink(batch)
 
 
 HEAD_CHARS, TAIL_CHARS = 8000, 4000

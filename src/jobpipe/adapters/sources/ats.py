@@ -16,7 +16,7 @@ class Greenhouse:
     base = "https://boards-api.greenhouse.io/v1/boards/{token}/jobs"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         for c in ctx.companies:
 
             def unit(c=c):
@@ -50,7 +50,7 @@ class Ashby:
     base = "https://api.ashbyhq.com/posting-api/job-board/{token}"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         for c in ctx.companies:
 
             def unit(c=c):
@@ -90,7 +90,7 @@ class Lever:
     base = "https://api.lever.co/v0/postings/{token}"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         for c in ctx.companies:
 
             def unit(c=c):
@@ -138,7 +138,7 @@ class Workable:
     base = "https://apply.workable.com/api/v1/widget/accounts/{token}"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         for c in ctx.companies:
 
             def unit(c=c):

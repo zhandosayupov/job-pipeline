@@ -20,7 +20,7 @@ class Himalayas:
     url = "https://himalayas.app/jobs/api"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         for q in ctx.params.get("queries", ["c++"]):
 
             def unit(q=q):
@@ -58,7 +58,7 @@ class Jobicy:
     url = "https://jobicy.com/api/v2/remote-jobs"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         for tag in ctx.params.get("tags", ["c++"]):
 
             def unit(tag=tag):
@@ -96,7 +96,7 @@ class WeWorkRemotely:
     url = "https://weworkremotely.com/categories/{category}.rss"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         for cat in ctx.params.get("categories", ["remote-back-end-programming-jobs"]):
 
             def unit(cat=cat):
@@ -134,7 +134,7 @@ class Arbeitnow:
     url = "https://www.arbeitnow.com/api/job-board-api"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
 
         def unit():
             data = http.get_json(self.url)
@@ -169,7 +169,7 @@ class Amazon:
     url = "https://www.amazon.jobs/en/search.json"
 
     def fetch(self, http: Http, ctx: SourceContext) -> FetchOutcome:
-        out = FetchOutcome()
+        out = FetchOutcome(sink=ctx.sink)
         for iso3 in ctx.params.get("countries", ["NLD"]):
 
             def unit(iso3=iso3):
