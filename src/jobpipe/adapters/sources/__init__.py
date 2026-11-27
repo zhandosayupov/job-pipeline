@@ -7,6 +7,7 @@ from __future__ import annotations
 from .aggregators import Amazon, Arbeitnow, Himalayas, Jobicy, WeWorkRemotely
 from .ats import Ashby, Greenhouse, Lever
 from .base import FetchOutcome, Source, SourceContext
+from .careers import CareerSites, Workday
 from .community import HackerNews, TelegramChannels
 
 SOURCES: dict[str, type] = {
@@ -22,6 +23,8 @@ SOURCES: dict[str, type] = {
         Arbeitnow,
         HackerNews,
         TelegramChannels,
+        CareerSites,
+        Workday,
     )
 }
 ATS_SOURCES = {"greenhouse", "ashby", "lever"}  # driven by companies.yaml

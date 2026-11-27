@@ -22,6 +22,8 @@ ROUTES = {
     "www.arbeitnow.com": "arbeitnow.json",
     "t.me": "tg_forcpp.html",
     "www.amazon.jobs": "amazon_nl.json",
+    "job.kaspi.kz": None,                       # sitemap or vacancy page, by path (careers)
+    "nvidia.wd5.myworkdayjobs.com": None,       # search or job detail, by path (workday)
 }
 
 
@@ -36,9 +38,14 @@ def fixture_http(overrides=None, seen=None):
         host = req.url.host
         if host == "hn.algolia.com":
             name = "hn_stories.json" if "search_by_date" in req.url.path else "hn_comments_cpp.json"
+        elif host == "job.kaspi.kz":
+            name = "careers_kaspi_sitemap.xml" if req.url.path.endswith(".xml") else "careers_kaspi_job.html"
+        elif host == "nvidia.wd5.myworkdayjobs.com":
+            name = "workday_jobs.json" if req.url.path.endswith("/jobs") else "workday_job.json"
         else:
             name = ROUTES[host]
-        ctype = {"html": "text/html", "rss": "application/rss+xml"}.get(name.rsplit(".", 1)[1], "application/json")
+        types = {"html": "text/html", "rss": "application/rss+xml", "xml": "application/xml"}
+        ctype = types.get(name.rsplit(".", 1)[1], "application/json")
         return httpx.Response(200, content=(F / name).read_bytes(), headers={"content-type": ctype})
 
     return Http(httpx.Client(transport=httpx.MockTransport(handler)), sleep=lambda s: None)
@@ -54,6 +61,10 @@ CONTEXTS = {
     "lever": lambda: SourceContext(companies=[company("Spotify", "spotify")]),
     "amazon": lambda: SourceContext(params={"countries": ["NLD"], "max_pages": 1}),
     "telegram": lambda: SourceContext(params={"channels": ["forcpp"]}),
+    "careers": lambda: SourceContext(params={"sites": [{"key": "kaspi", "company": "Kaspi.kz",
+                                                        "sitemap": "https://job.kaspi.kz/sitemap/vacancies.xml"}]}),
+    "workday": lambda: SourceContext(params={"tenants": [{"company": "NVIDIA", "host": "nvidia.wd5.myworkdayjobs.com",
+                                                          "tenant": "nvidia", "site": "NVIDIAExternalCareerSite"}]}),
 }
 
 
@@ -137,3 +148,38 @@ def test_tg_parser_reads_text_and_time():
     assert parse_tg_page(html) == [
         {"post": "ch/5", "datetime": "2026-11-20T10:00:00+00:00", "text": "Hiring C++ dev\nRemote"}
     ]
+
+
+def test_career_site_sitemap_gives_closures_and_remembers_seen_pages():
+    seen = []
+    ctx = CONTEXTS["careers"]()
+    ctx.params["sites"][0]["max_new"] = 2
+    out = SOURCES["careers"]().fetch(fixture_http(seen=seen), ctx)
+    assert len(out.complete_ids["careers:kaspi"]) == 3          # every vacancy in the sitemap
+    assert len(out.postings) == 2 and out.postings[0].company and out.postings[0].country == "KZ"
+    assert out.postings[0].salary_text is None                  # no published salary: stays None
+    first = [u for u in seen if "/vacancy/" in u]
+    out2 = SOURCES["careers"]().fetch(fixture_http(seen=seen), ctx)
+    assert len(out2.postings) == 1                              # only the page not fetched before
+    assert len([u for u in seen if "/vacancy/" in u]) == len(first) + 1
+
+
+def test_workday_search_and_details_use_post_json():
+    seen = []
+    out = SOURCES["workday"]().fetch(fixture_http(seen=seen), CONTEXTS["workday"]())
+    assert [p.source_job_id for p in out.postings] == ["nvidia:JR2029620", "nvidia:JR2030001"]
+    assert out.postings[0].remote == "Poland, Remote" and "low-latency" in out.postings[0].description
+    assert any(u.endswith("/wday/cxs/nvidia/NVIDIAExternalCareerSite/jobs") for u in seen)
+
+
+def test_post_json_respects_blocks():
+    import httpx
+
+    from jobpipe.adapters.http import Blocked
+
+    def handler(req):
+        return httpx.Response(404) if req.url.path == "/robots.txt" else httpx.Response(429)
+
+    http = Http(httpx.Client(transport=httpx.MockTransport(handler)), sleep=lambda s: None)
+    with pytest.raises(Blocked):
+        http.post_json("https://x.example/wday/cxs/a/b/jobs", {"searchText": "c++"})
