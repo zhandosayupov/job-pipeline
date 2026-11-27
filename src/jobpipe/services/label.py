@@ -56,8 +56,18 @@ class JobLabel(BaseModel):
 
     @field_validator("track", "level", "visa", "remote_scope", "resume_variant", "action", mode="before")
     @classmethod
-    def _lower(cls, v):
-        return v.strip().lower() if isinstance(v, str) else v
+    def _known_or_default(cls, v, info):
+        """An unexpected value becomes the field's safe default instead of rejecting the whole batch
+        of 20 (live: Gemini returned resume_variant values outside the list). For visa and remote the
+        default is "unknown", which is the safe direction; for action it is "maybe"."""
+        v = v.strip().lower().replace(" ", "_").replace("-", "_") if isinstance(v, str) else v
+        allowed = cls.model_fields[info.field_name].annotation.__args__
+        return v if v in allowed else cls.model_fields[info.field_name].default
+
+    @field_validator("reason", mode="before")
+    @classmethod
+    def _short_reason(cls, v):
+        return v[:400] if isinstance(v, str) else v
 
 
 class LabelBatch(BaseModel):

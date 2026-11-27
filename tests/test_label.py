@@ -251,3 +251,13 @@ def test_rating_stops_after_the_30_sample(env, clock):
         _, buttons = cards.next_rating_card(conn)
         cards.record_rating(conn, clock, int(buttons[0][0][1].split(":")[2]), "up")
     assert cards.next_rating_card(conn) is None
+
+
+def test_unexpected_enum_values_fall_back_to_safe_defaults():
+    """Live run: one odd resume_variant rejected a whole batch of 20 labels."""
+    lab = label.JobLabel.model_validate({
+        "id": "j1", "breakdown": {"level": 20, "stack": 20, "legal": 8, "comp": 5},
+        "resume_variant": "cpp_lowlatency", "track": "Quant Dev", "visa": "maybe?", "remote_scope": "EU only",
+        "action": "Apply Now", "level": "Middle", "reason": "x" * 600})
+    assert (lab.resume_variant, lab.track, lab.visa, lab.remote_scope) == ("generic", "other", "unknown", "unknown")
+    assert lab.action == "apply_now" and lab.level == "unknown" and len(lab.reason) == 400
