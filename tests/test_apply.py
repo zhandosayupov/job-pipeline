@@ -385,3 +385,30 @@ def test_pause_defers_without_a_12h_wait(env, app_cfg, clock):
     control.set_flag(conn, clock, control.PAUSED, "1")
     ap.on_fill_result(conn, clock, app_cfg, q, notifier, "app:gh:acme:1", ap.FillResult(ok=True, manifest_hash="h"))
     assert state(conn) == "ready" and "deferred_until" not in data(conn)
+
+
+
+def test_apply_error_after_the_click_is_unknown_not_a_retry(env, app_cfg, clock):
+    from jobpipe.worker.appliers import ApplyError
+
+    conn, q, _api, notifier, _ = env
+    control.set_flag(conn, clock, "dry_run.greenhouse", "0")
+    ap.schedule(conn, clock, app_cfg, q, notifier)
+    run_next(env, FakePage(FORM))
+
+    class PostClickCheck(FakePage):
+        def wait(self, s):
+            if any(a[0] == "click" for a in self.actions):     # a check that runs after the click
+                raise ApplyError("confirmation check failed")
+
+    assert run_next(env, PostClickCheck(FORM))["outcome"] == "unknown"
+    assert control.SideEffects(conn, clock).status("apply:acme:gh:acme:1") == "unknown"
+
+
+def test_submit_lost_never_overwrites_a_known_outcome(env, app_cfg, clock):
+    conn, _q, _api, _notifier, _ = env
+    se = control.SideEffects(conn, clock)
+    se.plan("apply:acme:gh:acme:1", "submit")
+    se.mark("apply:acme:gh:acme:1", "done")
+    ap.submit_lost(conn, clock, None, "app:gh:acme:1")
+    assert se.status("apply:acme:gh:acme:1") == "done"
