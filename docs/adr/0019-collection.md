@@ -21,6 +21,14 @@ uneven, and the owner must never get the same vacancy twice.
   stops for that run and the owner is told **at once** (the first blocked run; CLAUDE.md). Plain errors
   alert after `health_alert_after` consecutive failures; both alert once more on recovery. Nothing is
   worked around (ADR 0012).
+* **Companies' own career sites** (`adapters/sources/careers.py`). Most large employers publish
+  through an ATS: 109 Greenhouse/Ashby/Lever boards are in `companies.yaml`. Sites without one are
+  read the way search engines read them, or not at all:
+  * `careers`: the vacancy sitemap plus the schema.org `JobPosting` JSON-LD on each page (Kaspi.kz,
+    Meta). The sitemap lists every open vacancy, which gives closures; at most `max_new` pages are
+    fetched per site per run, and seen pages are remembered.
+  * `workday`: the public JSON search of Workday career sites (Nvidia), off by default.
+  * A site whose robots.txt disallows its job pages (Google's job search) is not collected.
 * **Re-seen postings** only refresh `last_seen`: the description stored at first sight is kept (the
   label and dedupe fingerprint stay stable), and a closed job that reappears stays closed (its id is
   known; a re-posted vacancy usually gets a new id and comes in as new).

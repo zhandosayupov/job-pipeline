@@ -62,6 +62,15 @@ class Http:
     def get_text(self, url: str, params: dict | None = None) -> str:
         return self._get(url, params).text
 
+    def post_json(self, url: str, body: dict):
+        """A read-only search API that takes its query as a POST body (Workday). Same robots, pacing,
+        retry and block rules as GET; never used for anything that changes state."""
+        resp = self._get(url, None, body=body)
+        try:
+            return resp.json()
+        except ValueError as e:
+            raise FetchError(f"{url}: not JSON") from e
+
     # --- internals -----------------------------------------------------------------------
 
     def _pace(self, host: str) -> None:
@@ -99,7 +108,7 @@ class Http:
         rp.parse(resp.text.splitlines())
         return rp
 
-    def _get(self, url: str, params: dict | None) -> httpx.Response:
+    def _get(self, url: str, params: dict | None, body: dict | None = None) -> httpx.Response:
         if not self._allowed(url):
             raise Blocked(f"robots.txt disallows {url}")
         host = urlsplit(url).netloc
@@ -107,7 +116,10 @@ class Http:
         for attempt in range(self.retries + 1):
             self._pace(host)
             try:
-                resp = self.client.get(url, params=params, headers=self.headers, timeout=self.timeout_s)
+                if body is None:
+                    resp = self.client.get(url, params=params, headers=self.headers, timeout=self.timeout_s)
+                else:
+                    resp = self.client.post(url, json=body, headers=self.headers, timeout=self.timeout_s)
             except httpx.TimeoutException:
                 last_err = "timeout"
             except httpx.TransportError as e:
