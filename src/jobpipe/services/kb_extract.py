@@ -71,9 +71,14 @@ def check(out: Extracted, cv: str) -> ExtractResult:
     return res
 
 
-def extract(router, cv_text: str) -> ExtractResult:
-    out = router.complete("kb_extract", {"cv": cv_text[:20000]}, schema=Extracted, personal=True)
-    return check(out.data, cv_text)
+def extract(router, cv_text: str, pii: dict[str, list[str]]) -> ExtractResult:
+    """The CV is pseudonymized here and the answer is never restored: the fact base needs no name,
+    e-mail or phone, so they cannot reach the draft file or the console (CodeQL clear-text storage)."""
+    from .pii import Pseudonymizer
+
+    redacted = Pseudonymizer(pii).redact(cv_text)
+    out = router.complete("kb_extract", {"cv": redacted[:20000]}, schema=Extracted, personal=True)
+    return check(out.data, redacted)
 
 
 def write_draft(res: ExtractResult, kb_dir: Path) -> Path:

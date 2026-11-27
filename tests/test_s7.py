@@ -248,3 +248,21 @@ def test_reminder_due_during_a_pause_goes_out_after_resume(env, app_cfg, clock):
     control.set_flag(conn, clock, control.PAUSED, "0")
     assert ib.remind(conn, clock, app_cfg, n) == 1        # ...and not lost
     assert ib.remind(conn, clock, app_cfg, n) == 0
+
+
+def test_kb_extract_never_sends_or_stores_contact_details(tmp_path):
+    cv = "Alex Example, alex@example.com, +0 000 000 0000\n- Cut p99 latency by 35% (C++)\n"
+    seen = {}
+
+    class Router:
+        def complete(self, task, variables, schema=None, personal=False):
+            seen["cv"] = variables["cv"]
+            line = next(x for x in variables["cv"].splitlines() if "p99" in x)
+            data = kx.Extracted.model_validate({"facts": [
+                {"id": "f", "statement": "Cut p99 latency by 35%", "tech": ["C++"], "quote": line}]})
+            return type("C", (), {"data": data})()
+
+    res = kx.extract(Router(), cv, KB.pii_values())
+    assert "alex@example.com" not in seen["cv"] and "Alex Example" not in seen["cv"]
+    text = kx.write_draft(res, tmp_path).read_text(encoding="utf-8")
+    assert "alex@example.com" not in text and [f.id for f in res.facts] == ["f"]
