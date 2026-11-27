@@ -63,6 +63,7 @@ class Collector:
             log.info("paused; collect skipped")
             return []
         run_id = control.start_run(self.conn, self.clock, "run collect")
+        self.sweep_discovered()
         results: list[SourceResult] = []
         status = "ok"
         try:
@@ -160,6 +161,25 @@ class Collector:
         else:
             res.kept += 1
 
+    def sweep_discovered(self) -> int:
+        """A crash between creating a job and prefiltering it leaves it in `discovered`, and the next
+        run sees its id as already known. Finish those here, from what was stored."""
+        rows = self.conn.execute("SELECT * FROM jobs WHERE state = 'discovered' AND drop_rule IS NULL").fetchall()
+        for r in rows:
+            data = json.loads(r["data_json"] or "{}")
+            p = Posting(source=r["source"], kind=r["kind"], source_job_id=r["id"].split(":", 1)[-1],
+                        company=r["company"] or "", title=r["title"] or "", url=r["url"] or "",
+                        description=data.get("description") or "", location=r["location"], country=r["country"],
+                        remote=data.get("remote_text"), posted_at=r["posted_at"])
+            d = decide(p, self.cfg.filters, self.cfg.policy.work_authorized_countries)
+            if not d.keep:
+                self._drop(r["id"], "discovered", d.rule or "prefilter", d.matched)
+                continue
+            transition(self.conn, self.clock, "job", r["id"], "prefiltered", expected="discovered", actor="collect",
+                       data={"swept": True})
+            self._dedupe(p, r["fingerprint"])
+        return len(rows)
+
     def _drop(
         self, job_id: str, expected: str, rule: str, matched: str | None, duplicate_of: str | None = None
     ) -> None:
@@ -202,7 +222,9 @@ class Collector:
         """A complete board no longer lists these jobs: they closed."""
         prefix = unit + ":"
         terminal = states.terminal_states(states.JOB)
-        rows = self.conn.execute("SELECT id, state FROM jobs WHERE id LIKE ? || '%'", (prefix,)).fetchall()
+        # substr, not LIKE: "_" and "%" in a unit name (acme_inc) must not match other units' ids
+        rows = self.conn.execute("SELECT id, state FROM jobs WHERE substr(id, 1, ?) = ?",
+                                 (len(prefix), prefix)).fetchall()
         n = 0
         for r in rows:
             if r["id"] not in present and r["state"] not in terminal:
@@ -245,7 +267,14 @@ class Collector:
             )
 
     def _health(self, source: str) -> None:
-        """Alert once when a source reaches N consecutive non-ok runs, and once when it recovers."""
+        """A block (401/403/429, captcha, robots) alerts at once (CLAUDE.md: stop and notify the owner);
+        plain errors alert after N consecutive non-ok runs. Each alerts once, and once on recovery."""
+        last2 = self.conn.execute("SELECT status, error FROM source_runs WHERE source = ? ORDER BY id DESC LIMIT 2",
+                                  (source,)).fetchall()
+        if last2 and last2[0]["status"] == "blocked" and (len(last2) == 1 or last2[1]["status"] != "blocked"):
+            self.notifier.send(f"⛔ Источник {source} заблокировал запросы (403/429/капча/robots): остановлен до "
+                               f"следующего запуска, ничего не обходим.\n{(last2[0]['error'] or '')[:500]}")
+            return
         n = self.cfg.sources.health_alert_after
         rows = self.conn.execute(
             "SELECT status, error FROM source_runs WHERE source = ? ORDER BY id DESC LIMIT ?", (source, n + 1)
