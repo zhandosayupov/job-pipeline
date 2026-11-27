@@ -85,6 +85,7 @@ class LabelCfg(_Model):
     daily_max_jobs: int = 600            # budget guard: labeling stops for the day after this many
     shortlist_threshold: int = 60        # score at or above, and action != skip -> shortlisted
     alert_threshold: int = 80            # instant Telegram card
+    max_cards_per_run: int = 10          # the rest stay on the shortlist (/shortlist, digest)
     # Who the labels are for. Keep personal details here only, never in the repo.
     profile: str = ("Software engineer, about 3 years of C++ and backend experience. Prefers low-latency, "
                     "trading, search, infrastructure and distributed-systems roles.")

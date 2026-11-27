@@ -119,3 +119,26 @@ def test_bot_service_s2_commands(app_cfg, clock):
     assert "выключен" in svc.dryrun("hh", "off") and "Использование" in svc.dryrun("hh", "maybe")
     assert "добавлена" in svc.protect("Acme") and "убрана" in svc.unprotect("Acme")
     assert "Использование" in svc.protect("  ")
+
+
+def test_cards_are_capped_per_run_best_first(tmp_path, clock):
+    from jobpipe.adapters.notifier.telegram import RecordingNotifier
+    from jobpipe.adapters.storage.db import open_db
+    from jobpipe.services import cards
+    from jobpipe.services.events import create_entity, transition
+
+    conn = open_db(tmp_path / "c.db", clock)
+    ids = []
+    for i in range(15):
+        jid = f"t:{i}"
+        create_entity(conn, clock, "job", jid, columns={"source": "t", "kind": "ats", "company": f"Co{i}",
+                                                       "title": "C++", "url": f"https://x/{i}", "protected": 1},
+                      data={"label": {"score": i, "breakdown": {}}})
+        for s in ("prefiltered", "labeled", "shortlisted"):
+            transition(conn, clock, "job", jid, s)
+        ids.append(jid)
+    n = RecordingNotifier()
+    assert cards.send_cards(conn, n, ids, 80, max_cards=10) == 10
+    assert "Co14" in n.messages[0] and "ещё 5" in n.messages[-1]          # best score first, rest counted
+    sent = [r[0] for r in conn.execute("SELECT id FROM jobs WHERE json_extract(data_json, '$.card_sent')")]
+    assert "t:0" not in sent and len(sent) == 10

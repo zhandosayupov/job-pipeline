@@ -50,6 +50,7 @@ label:                      # S2 (spec §7)
   daily_max_jobs: 600         # budget guard: labeling stops for the day after this many
   shortlist_threshold: 60     # score >= this and action != skip -> shortlisted
   alert_threshold: 80         # instant Telegram card with buttons
+  max_cards_per_run: 10       # at most this many cards per labeling run, best first
   # Who the labels are for. Personal details belong only in your private copy of this file.
   profile: "Software engineer, about 3 years of C++ and backend experience. Prefers low-latency, trading, search, infrastructure and distributed-systems roles."
 
