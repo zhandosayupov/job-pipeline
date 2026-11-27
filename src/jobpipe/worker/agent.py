@@ -162,11 +162,13 @@ class Worker:
             return self.core.result(task, "submit", {"clicked": False, "error": "paused before the click"}, shot)
         self._clicking = True
         try:
-            # Applier.submit raises ApplyError only before the click (missing selector); anything raised
-            # during or after the click goes through handle() as clicked=True (unknown outcome).
+            # Other exceptions during or after the click go through handle() as clicked=True (unknown).
             confirmed = applier.submit()
         except ApplyError as e:
             _safe_shot(page, shot)
+            if getattr(applier, "clicked", False):
+                # raised after the click (a post-click check): it may have gone out (S4 review)
+                return self.core.result(task, "submit", {"clicked": True, "confirmed": False, "error": str(e)}, shot)
             return self.core.result(task, "submit", {"clicked": False, "error": str(e)}, shot)
         _safe_shot(page, shot)
         return self.core.result(task, "submit", {"clicked": True, "confirmed": confirmed}, shot)
