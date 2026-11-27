@@ -12,7 +12,7 @@ Environment=PYTHONUNBUFFERED=1
 WorkingDirectory=/opt/jobpipe
 ExecStart=/opt/jobpipe/.venv/bin/jobpipe run collect
 TimeoutStartSec=1200
-MemoryMax=300M
+MemoryMax=450M
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
