@@ -23,8 +23,8 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
 - **LinkedIn** (discovery only, ADR 0011): `python-jobspy` pulls in pandas, too heavy for the 1 GB VM.
   Options: run it on the laptop worker (S4), or a small own client for the public guest search.
 - **relocate.me**: HTML listing pages (robots.txt allows them; `/api/` is disallowed).
-- **Habr Career, getmatch, Remowork**: JS-heavy, need the browser worker (S4).
-- **hh.kz**: saved-search email alerts parsed from Gmail (S5) and search pages in the worker (S4).
+- ~~Habr Career~~: S8 (its page JSON). **getmatch, Remowork**: rendered by JavaScript, need the browser worker.
+- ~~hh.kz search~~: S8 through the official API (needs your contact in `HH-User-Agent`).
 
 ## Tailoring (after S3)
 

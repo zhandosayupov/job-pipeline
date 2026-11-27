@@ -22,6 +22,8 @@ ROUTES = {
     "www.arbeitnow.com": "arbeitnow.json",
     "t.me": "tg_forcpp.html",
     "www.amazon.jobs": "amazon_nl.json",
+    "career.habr.com": "habr_cpp.html",
+    "api.hh.ru": "hh_vacancies.json",
     "job.kaspi.kz": None,                       # sitemap or vacancy page, by path (careers)
     "nvidia.wd5.myworkdayjobs.com": None,       # search or job detail, by path (workday)
 }
@@ -61,6 +63,8 @@ CONTEXTS = {
     "lever": lambda: SourceContext(companies=[company("Spotify", "spotify")]),
     "amazon": lambda: SourceContext(params={"countries": ["NLD"], "max_pages": 1}),
     "telegram": lambda: SourceContext(params={"channels": ["forcpp"]}),
+    "hh": lambda: SourceContext(params={"contact": "jobpipe-test/0.1 (owner)", "areas": ["kz"], "queries": ["c++"]}),
+    "habr": lambda: SourceContext(params={"queries": ["c++"], "max_pages": 1}),
     "careers": lambda: SourceContext(params={"sites": [{"key": "kaspi", "company": "Kaspi.kz",
                                                         "sitemap": "https://job.kaspi.kz/sitemap/vacancies.xml"}]}),
     "workday": lambda: SourceContext(params={"tenants": [{"company": "NVIDIA", "host": "nvidia.wd5.myworkdayjobs.com",
@@ -183,3 +187,27 @@ def test_post_json_respects_blocks():
     http = Http(httpx.Client(transport=httpx.MockTransport(handler)), sleep=lambda s: None)
     with pytest.raises(Blocked):
         http.post_json("https://x.example/wday/cxs/a/b/jobs", {"searchText": "c++"})
+
+
+def test_habr_ignores_the_predicted_salary():
+    out = SOURCES["habr"]().fetch(fixture_http(), CONTEXTS["habr"]())
+    assert out.postings[0].salary_text is None          # only Habr's estimate exists for it: not a salary
+    assert out.postings[0].company == "ИнфоТеКС" and out.postings[0].url.startswith("https://career.habr.com/")
+    assert "C++" in out.postings[0].description
+
+
+def test_hh_sends_the_contact_header_and_needs_it():
+    seen = []
+
+    def hh(req):
+        seen.append(req.headers.get("HH-User-Agent"))
+        return httpx.Response(200, content=(F / "hh_vacancies.json").read_bytes(),
+                              headers={"content-type": "application/json"})
+
+    out = SOURCES["hh"]().fetch(fixture_http({"api.hh.ru": hh}), CONTEXTS["hh"]())
+    assert seen == ["jobpipe-test/0.1 (owner)"]
+    p = out.postings[0]
+    assert p.salary_text == "500000–800000 KZT" and p.remote == "удалённо" and p.country == "KZ"
+    assert out.postings[1].salary_text is None
+    missing = SOURCES["hh"]().fetch(fixture_http(), SourceContext(params={}))
+    assert missing.status == "error" and "contact" in missing.errors[0]

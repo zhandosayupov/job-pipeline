@@ -60,3 +60,6 @@ uneven, and the owner must never get the same vacancy twice.
   prefilter, 73 merged as duplicates. That is too many to read: S2 labeling has to rank them.
 * LinkedIn (jobspy pulls in pandas, too heavy for 1 GB), relocate.me (HTML, its robots.txt allows the
   listing pages) and Habr Career are left for later; see `docs/TODO.md`.
+* **S8 boards**: Habr Career through the JSON state embedded in its search page (Habr's predicted
+  salary is ignored), and hh.kz/hh.ru through `api.hh.ru` with the `HH-User-Agent` contact hh
+  requires (off until the owner sets `params.contact`). Neither needs a browser or a login.

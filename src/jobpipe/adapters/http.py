@@ -52,8 +52,8 @@ class Http:
 
     # --- public --------------------------------------------------------------------------
 
-    def get_json(self, url: str, params: dict | None = None):
-        resp = self._get(url, params)
+    def get_json(self, url: str, params: dict | None = None, headers: dict | None = None):
+        resp = self._get(url, params, headers=headers)
         try:
             return resp.json()
         except ValueError as e:
@@ -108,7 +108,8 @@ class Http:
         rp.parse(resp.text.splitlines())
         return rp
 
-    def _get(self, url: str, params: dict | None, body: dict | None = None) -> httpx.Response:
+    def _get(self, url: str, params: dict | None, body: dict | None = None,
+             headers: dict | None = None) -> httpx.Response:
         if not self._allowed(url):
             raise Blocked(f"robots.txt disallows {url}")
         host = urlsplit(url).netloc
@@ -116,10 +117,11 @@ class Http:
         for attempt in range(self.retries + 1):
             self._pace(host)
             try:
+                hdrs = {**self.headers, **(headers or {})}
                 if body is None:
-                    resp = self.client.get(url, params=params, headers=self.headers, timeout=self.timeout_s)
+                    resp = self.client.get(url, params=params, headers=hdrs, timeout=self.timeout_s)
                 else:
-                    resp = self.client.post(url, json=body, headers=self.headers, timeout=self.timeout_s)
+                    resp = self.client.post(url, json=body, headers=hdrs, timeout=self.timeout_s)
             except httpx.TimeoutException:
                 last_err = "timeout"
             except httpx.TransportError as e:
