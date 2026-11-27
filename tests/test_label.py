@@ -197,3 +197,19 @@ def test_real_router_and_prompt_round_trip(env, clock):
     assert "KZ" in t.req.messages[0]["content"]
     lab = json.loads(conn.execute("SELECT data_json FROM jobs WHERE id='t:0'").fetchone()[0])["label"]
     assert lab["track"] == "hft" and lab["visa"] == "explicit" and lab["visa_evidence"]
+
+
+def test_rejected_claims_earn_no_legal_points(clock):
+    """S2 review: legal=25 for a sponsorship claim whose quote is not in the posting must not stay."""
+    lab = mk_label("x", legal=25, visa="explicit", visa_evidence="we sponsor visas",
+                   remote_scope="worldwide", remote_evidence="fully remote")
+    out = label.verify(lab, "C++ engineer in our Amsterdam office.", None, clock.now())
+    assert out["breakdown"]["legal"] == label.LEGAL_UNKNOWN
+    assert out["score"] == sum(out["breakdown"].values())
+
+
+def test_a_quoted_claim_keeps_its_legal_points(clock):
+    lab = mk_label("x", legal=22, visa="explicit", visa_evidence="we sponsor visas",
+                   remote_scope="worldwide", remote_evidence="fully remote")
+    out = label.verify(lab, "C++ engineer. We sponsor visas.", None, clock.now())
+    assert out["visa"] == "explicit" and out["breakdown"]["legal"] == 22
