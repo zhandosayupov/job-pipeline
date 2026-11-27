@@ -34,6 +34,8 @@ Ideas and decisions parked on purpose. Each item becomes an ADR or a sprint task
   `templates/cv.tex` and pick the template by `resume_variant`.
 - **tectonic on the VM**: the binary plus its bundle cache is several hundred MB; compile on the laptop
   worker (S4) or install it in `provision.sh` behind a flag.
+- **Open technology list in the truth gate**: also treat capitalised product-like words outside `TECH`
+  as claims, or compare against the job's tech list (S3 review).
 - **Re-label with the full text** before tailoring (labels use a 700-character excerpt).
 
 ## Production

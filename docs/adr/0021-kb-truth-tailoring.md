@@ -36,3 +36,7 @@ Date: 2026-11-27 · Status: accepted (S3) · Implements ADR 0008
   and blocks on the missing letter.
 * The owner's own LaTeX templates (`cv_*_hft.tex`, `cv_*_generic.tex`) can replace `templates/cv.tex`
   once they use the same placeholders; see `docs/TODO.md`.
+* **Known limit: the technology list is closed.** The gate checks technologies from a fixed list
+  (`TECH` in `services/truth.py`). A technology outside it (Tokio, a niche library) produces no
+  claim and cannot be blocked. A negation exempts a technology only when it is a negation of using
+  it, right before it ("I have not used Rust"), not anywhere in the sentence (S3 review).
